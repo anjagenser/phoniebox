@@ -1,0 +1,33 @@
+# Shared folder
+/shared/audiofolders/*
+/shared/logs/*
+/shared/playlists/*
+/shared/settings/*
+/shared/logs/*.log*
+/shared/*.*
+/shared/*
+/src/webapp/public/cover-cache/*.*
+
+# Application
+/src/cli_client/pbc
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+
+.git
+.venv
+*~
+*.*~
+*.pyc
+*.idea
+*.vscode
+.DS_Store
+**/.mypy_cache
+
+# Keep folders with .gitkeep
+!/**/.gitkeep
+
+# Development Scratchpads
+/**/scratch
+/**/scratch_*

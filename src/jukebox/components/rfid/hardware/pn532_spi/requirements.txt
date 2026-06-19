@@ -1,0 +1,5 @@
+# PN532 SPI related requirements
+# You need to install these with `python -m pip install --upgrade --force-reinstall -q -r requirements.txt`
+
+adafruit-circuitpython-pn532
+adafruit-blinka

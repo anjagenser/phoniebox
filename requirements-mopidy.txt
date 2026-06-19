@@ -1,0 +1,7 @@
+# Python packages for Mopidy with Spotify support.
+# These are installed globally (outside the jukebox venv) for the Mopidy daemon.
+# Install with: sudo pip3 install -r requirements-mopidy.txt
+Mopidy-Local
+Mopidy-MPD
+Mopidy-Iris==3.70.0
+Mopidy-Spotify==5.0.0

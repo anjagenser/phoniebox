@@ -1,0 +1,7 @@
+# APT packages required for Mopidy with Spotify support.
+# Install with: sed 's/#.*//g' packages-mopidy.txt | xargs sudo apt-get install -y
+
+python3-cffi
+python3-ply
+python3-pycparser
+mopidy

@@ -1,0 +1,11 @@
+[Unit]
+Description=Mopidy music server (Spotify support)
+After=pulseaudio.service network.target
+
+[Service]
+ExecStart=/usr/bin/mopidy --config %%MOPIDY_CONF_PATH%%
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=default.target
