@@ -8,14 +8,30 @@ AUTOHOTSPOT_TIMER="autohotspot.timer"
 AUTOHOTSPOT_TIMER_PATH="${SYSTEMD_PATH}/${AUTOHOTSPOT_TIMER}"
 
 _get_interface() {
-    # interfaces may vary
-    WIFI_INTERFACE=$(iw dev | grep "Interface"| awk '{ print $2 }')
+    # interfaces may vary; detect the first real WiFi device.
+    # Prefer NetworkManager's view (authoritative on NM systems); fall back to iw.
+    # Exclude p2p-dev-* virtual interfaces and take only the first match, otherwise
+    # a multi-line/empty result gets baked into the autohotspot script (wdev0='').
+    WIFI_INTERFACE=""
+    if command -v nmcli >/dev/null 2>&1; then
+        WIFI_INTERFACE=$(nmcli -t -f DEVICE,TYPE device status 2>/dev/null \
+            | awk -F: '$2=="wifi"{print $1; exit}')
+    fi
+    if [ -z "${WIFI_INTERFACE}" ]; then
+        WIFI_INTERFACE=$(iw dev 2>/dev/null \
+            | awk '$1=="Interface"{print $2}' | grep -v '^p2p-' | head -n1)
+    fi
 
     # fix for CI runs on docker
     if [ "${CI_RUNNING}" == "true" ]; then
         if [ -z "${WIFI_INTERFACE}" ]; then
             WIFI_INTERFACE="CI TEST INTERFACE"
         fi
+    fi
+
+    # Fail loudly instead of baking an empty device into the autohotspot script.
+    if [ -z "${WIFI_INTERFACE}" ]; then
+        exit_on_error "ERROR: no WiFi interface detected for autohotspot (WiFi hardware present and enabled?)"
     fi
 }
 
