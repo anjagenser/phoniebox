@@ -575,6 +575,16 @@ class PlayerMPD:
         """
         uri = components.player.uri.normalize_uri(uri)
         logger.info(f"play_uri: '{uri}'")
+        # Second-swipe handling (mirrors play_card): re-placing the same card that is
+        # already loaded runs the configured second_swipe_action (e.g. 'play' to resume
+        # from pause) instead of clearing and restarting from the beginning. With
+        # place-not-swipe this gives: place -> play, remove -> pause, place -> resume.
+        with self.mpd_lock:
+            is_second_swipe = self.music_player_status['player_status']['last_played_folder'] == uri
+        if self.second_swipe_action is not None and is_second_swipe:
+            logger.debug('play_uri: calling second swipe action')
+            self.second_swipe_action()
+            return
         with self.mpd_lock:
             self.mpd_client.clear()
             self.mpd_client.add(uri)
