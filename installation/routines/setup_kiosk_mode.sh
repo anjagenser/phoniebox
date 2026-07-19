@@ -26,7 +26,7 @@ _kiosk_mode_set_autostart() {
   tee -a "${KIOSK_MODE_BASHRC}" <<-EOF
 
 ${KIOSK_MODE_CONF_HEADER}
-[[ -z $_DISPLAY && $_XDG_VTNR -eq 1 ]] && startx -- -nocursor
+[[ -z $_DISPLAY && $_XDG_VTNR -eq 1 ]] && grep -qxs connected /sys/class/drm/*/status && startx -- -nocursor
 
 EOF
 
