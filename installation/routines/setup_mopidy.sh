@@ -56,8 +56,20 @@ _mopidy_install_gst_plugin_spotify() {
 _mopidy_install_python_requirements() {
     log "  Install Mopidy Python requirements"
     # Mopidy plugins are installed globally (outside the jukebox venv)
-    # as they are used by the Mopidy daemon, not the jukebox Python process
-    sudo pip3 install --break-system-packages --upgrade \
+    # as they are used by the Mopidy daemon, not the jukebox Python process.
+    #
+    # Mopidy-Spotify 5.x needs Mopidy >= 4.0, which only exists on PyPI (Trixie apt
+    # ships 3.4.2). We must NOT use '--upgrade': pip would try to replace Debian-managed
+    # dependencies (e.g. typing-extensions) and abort with 'uninstall-no-record-file'.
+    #
+    # Step 1: install Mopidy 4.x and a new-enough typing-extensions WITHOUT touching
+    #         Debian packages ('--ignore-installed --no-deps' => no uninstall attempts,
+    #         no cascade into apt-provided deps like pygobject).
+    sudo pip3 install --break-system-packages --ignore-installed --no-deps \
+        'mopidy>=4.0.0' 'typing-extensions>=4.14.1'
+    # Step 2: install the extensions. Debian-satisfied deps are reused; genuinely new
+    #         deps (pydantic, httpx, ...) are pulled fresh. No --upgrade.
+    sudo pip3 install --break-system-packages \
         -r "${INSTALLATION_PATH}/requirements-mopidy.txt"
 }
 
@@ -91,6 +103,12 @@ _mopidy_configure() {
     # Register Mopidy as a user systemd service
     sudo cp -f "${INSTALLATION_PATH}/resources/default-services/mopidy.service" "${MOPIDY_SYSTEMD_USR_SERVICE}"
     sudo sed -i "s|%%MOPIDY_CONF_PATH%%|${MOPIDY_CONF_PATH}|g" "${MOPIDY_SYSTEMD_USR_SERVICE}"
+    # Mopidy 4.x is installed via pip (usually /usr/local/bin/mopidy), not the apt
+    # location (/usr/bin/mopidy = the 3.x kept only for its gstreamer system deps).
+    # Point the service at whichever 'mopidy' resolves first on PATH.
+    local mopidy_bin
+    mopidy_bin=$(command -v mopidy || echo /usr/local/bin/mopidy)
+    sudo sed -i "s|%%MOPIDY_BIN%%|${mopidy_bin}|g" "${MOPIDY_SYSTEMD_USR_SERVICE}"
     sudo chmod 644 "${MOPIDY_SYSTEMD_USR_SERVICE}"
 
     # Replace the mpd.service dependency in jukebox-daemon.service with mopidy.service
@@ -107,6 +125,24 @@ _mopidy_check() {
     print_verify_installation
 
     verify_apt_packages mopidy
+
+    # Verify Mopidy extensions are installed.
+    # They are installed globally via 'sudo pip3' (requirements-mopidy.txt) and are
+    # easily missed if pip3 is absent or a version pin is incompatible with the OS
+    # Python version. Without them Mopidy silently starts without the MPD frontend
+    # (port 6600) and the jukebox 'player' plugin fails to connect.
+    log "  Verify Mopidy extensions"
+    local mopidy_deps_output
+    mopidy_deps_output=$(mopidy deps 2>/dev/null)
+    local ext
+    for ext in Mopidy-MPD Mopidy-Local Mopidy-Spotify; do
+        if ! echo "${mopidy_deps_output}" | grep -qi "${ext}"; then
+            exit_on_error "ERROR: Mopidy extension '${ext}' is not installed.
+Ensure 'python3-pip' is installed (see packages-mopidy.txt) and that
+'sudo pip3 install -r requirements-mopidy.txt' succeeded for this OS's Python version."
+        fi
+    done
+    log "  CHECK"
 
     verify_files_exists "${MOPIDY_CONF_PATH}"
     verify_file_contains_string "${AUDIOFOLDERS_PATH}" "${MOPIDY_CONF_PATH}"

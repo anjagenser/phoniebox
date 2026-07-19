@@ -1,7 +1,16 @@
 # Python packages for Mopidy with Spotify support.
 # These are installed globally (outside the jukebox venv) for the Mopidy daemon.
-# Install with: sudo pip3 install -r requirements-mopidy.txt
+# Install via setup_mopidy.sh (do NOT use --upgrade: pip cannot uninstall the
+# Debian-managed deps and would abort with 'uninstall-no-record-file').
+#
+# Mopidy-Spotify 5.0.0 and Mopidy-MPD/Local 4.0.0 require Mopidy >= 4.0 and
+# Python >= 3.13 (Debian Trixie). Mopidy 4.x comes from PyPI (Trixie apt has 3.4.2).
+#
+# NOTE: Mopidy-Iris is intentionally omitted - it imports 'mopidy.models.serialize'
+# which was removed in Mopidy 4.x, and no Mopidy-4.x-compatible release exists.
+# Spotify content is mapped to cards via the WebApp 'play_uri' action (a Spotify
+# share URL or 'spotify:...' URI), so Iris is not needed for that workflow.
+Mopidy>=4.0.0
 Mopidy-Local
 Mopidy-MPD
-Mopidy-Iris==3.70.0
 Mopidy-Spotify==5.0.0
