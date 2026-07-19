@@ -227,7 +227,7 @@ def query_user_for_reader(dependency_install='query') -> dict:
                                                                                      'same_id_delay': 1.0,
                                                                                      'log_ignored_cards': False,
                                                                                      'place_not_swipe':
-                                                                                         {'enabled': False,
+                                                                                         {'enabled': True,
                                                                                           'card_removal_action':
                                                                                               {'alias': 'pause'}}}
 
