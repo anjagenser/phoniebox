@@ -12,6 +12,7 @@ import { useTheme } from '@mui/material/styles';
 
 import Header from '../Header';
 import request from '../../utils/request';
+import { MINI_PLAYER_HEIGHT, NAV_HEIGHT } from '../Player/mini-player';
 
 const CardsOverview = () => {
   const navigate = useNavigate();
@@ -64,8 +65,11 @@ const CardsOverview = () => {
         onClick={openRegisterCard}
         sx={{
           position: 'fixed',
-          bottom: '76px',
+          // Sit above the fixed MiniPlayer bar (which covers the lower band on
+          // every non-home page) instead of being hidden beneath it.
+          bottom: `calc(${NAV_HEIGHT + MINI_PLAYER_HEIGHT}px + ${theme.spacing(2)})`,
           right: theme.spacing(2),
+          zIndex: theme.zIndex.drawer + 1,
         }}
       >
         <AddIcon />
