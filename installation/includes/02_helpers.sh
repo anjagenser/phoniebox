@@ -383,7 +383,9 @@ verify_optional_service_enablement() {
     fi
 
     local actual_enablement=$(_get_service_enablement $service $option)
-    if [[ -z "${actual_enablement}" ]]; then
+    # Newer systemd (Debian Trixie) reports 'not-found' for absent units instead of
+    # an empty string; treat both as "not installed" for an optional service.
+    if [[ -z "${actual_enablement}" || "${actual_enablement}" == "not-found" ]]; then
         log "  INFO: optional service ${option}${service} is not installed."
     elif [[ "${actual_enablement}" == "static" ]]; then
         log "  INFO: optional service ${option}${service} is set static."
