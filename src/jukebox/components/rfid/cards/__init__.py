@@ -134,6 +134,43 @@ def register_card_custom():
     raise NotImplementedError
 
 
+@plugs.register
+def export_card_database():
+    """Return the full card database as a plain mapping (for backup / download)."""
+    with cfg_cards:
+        return {card_id: card_action for card_id, card_action in cfg_cards.items()}
+
+
+@plugs.register
+def import_card_database(cards, merge: bool = False, auto_save: bool = True):
+    """Replace (or merge) the card database from a backup mapping.
+
+    :param cards: Mapping of ``card_id -> action`` as produced by
+        :func:`export_card_database`.
+    :param merge: When ``True`` merge into the existing database, otherwise
+        replace it entirely.
+    :param auto_save: Persist the card database after importing.
+    :return: ``{'count': <number of imported cards>}``
+    """
+    if not isinstance(cards, dict):
+        raise TypeError("Card database import expects a mapping of card_id -> action")
+    for card_id, action in cards.items():
+        if not isinstance(card_id, str) or not isinstance(action, dict):
+            raise ValueError(f"Invalid card entry for '{card_id}': expected a mapping")
+    with cfg_cards:
+        if merge:
+            for card_id, action in cards.items():
+                cfg_cards[card_id] = action
+        else:
+            cfg_cards.config_dict(cards)
+        if auto_save:
+            cfg_cards.save(only_if_changed=False)
+    check_card_database()
+    log.info(f"Imported {len(cards)} card(s) (merge={merge})")
+    publishing.get_publisher().send(f'{plugs.loaded_as(__name__)}.database.has_changed', time.ctime())
+    return {'count': len(cards)}
+
+
 def check_card_database():
     with cfg_cards:
         # Check type of keys (all of them)

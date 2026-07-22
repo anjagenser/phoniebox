@@ -386,6 +386,18 @@
         "removed": "Device removed"
       }
     },
+    "cardbackup": {
+      "title": "Card backup",
+      "description": "Download a backup of all card assignments, or restore them from a backup file.",
+      "export": "Export",
+      "import": "Import",
+      "merge": "Merge into existing cards",
+      "imported": "Imported {{count}} card(s)",
+      "invalid-file": "Invalid backup file.",
+      "confirm-title": "Restore cards",
+      "confirm-replace": "This will replace all current cards with {{count}} card(s) from the backup. Continue?",
+      "confirm-merge": "This will merge {{count}} card(s) from the backup into your current cards. Continue?"
+    },
     "systemcontrols": {
       "title": "System Controls"
     }

@@ -59,6 +59,15 @@ const commands = {
     _package: 'cards',
     plugin: 'delete_card',
   },
+  exportCards: {
+    _package: 'cards',
+    plugin: 'export_card_database',
+  },
+  importCards: {
+    _package: 'cards',
+    plugin: 'import_card_database',
+    argKeys: ['cards', 'merge'],
+  },
   playerstatus: {
     _package: 'player',
     plugin: 'ctrl',

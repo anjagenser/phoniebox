@@ -384,6 +384,18 @@
         "removed": "Gerät entfernt"
       }
     },
+    "cardbackup": {
+      "title": "Karten-Sicherung",
+      "description": "Lade eine Sicherung aller Kartenzuweisungen herunter oder stelle sie aus einer Sicherungsdatei wieder her.",
+      "export": "Exportieren",
+      "import": "Importieren",
+      "merge": "In bestehende Karten einfügen",
+      "imported": "{{count}} Karte(n) importiert",
+      "invalid-file": "Ungültige Sicherungsdatei.",
+      "confirm-title": "Karten wiederherstellen",
+      "confirm-replace": "Dadurch werden alle aktuellen Karten durch {{count}} Karte(n) aus der Sicherung ersetzt. Fortfahren?",
+      "confirm-merge": "Dadurch werden {{count}} Karte(n) aus der Sicherung zu deinen aktuellen Karten hinzugefügt. Fortfahren?"
+    },
     "systemcontrols": {
       "title": "Systemsteuerung"
     }
