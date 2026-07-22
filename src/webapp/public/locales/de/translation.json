@@ -288,6 +288,15 @@
         "cancel": "Abbrechen"
       }
     },
+    "quiethours": {
+      "title": "Ruhezeiten",
+      "description": "Während der Ruhezeiten ist die Wiedergabe gesperrt. Die Lautstärke wird in den Minuten vor dem Startzeitpunkt langsam ausgeblendet.",
+      "enable": "Ruhezeiten aktivieren",
+      "start": "Start",
+      "end": "Ende",
+      "fade-label": "Dauer der Ausblendung vor dem Start: {{minutes}} Min.",
+      "load-error": "Die Ruhezeiten-Einstellungen konnten nicht geladen werden."
+    },
     "secondswipe": {
       "title": "Erneute Aktivierung (Second Swipe)",
       "description": "Aktion, wenn dieselbe Karte während der Wiedergabe erneut aktiviert wird",

@@ -257,6 +257,19 @@ const commands = {
     argKeys: ['wait_seconds'],
   },
 
+  // Quiet Hours
+  getQuietHours: {
+    _package: 'timers',
+    plugin: 'quiet_hours',
+    method: 'get_config',
+  },
+  setQuietHours: {
+    _package: 'timers',
+    plugin: 'quiet_hours',
+    method: 'set_config',
+    argKeys: ['enabled', 'start', 'end', 'fade_minutes'],
+  },
+
 
 
   // Host

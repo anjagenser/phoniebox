@@ -288,6 +288,15 @@
         "cancel": "Cancel"
       }
     },
+    "quiethours": {
+      "title": "Quiet hours",
+      "description": "During quiet hours playback is blocked. The volume is gently faded out over the minutes leading up to the start time.",
+      "enable": "Enable quiet hours",
+      "start": "Start",
+      "end": "End",
+      "fade-label": "Fade-out duration before start: {{minutes}} min",
+      "load-error": "Quiet-hours settings could not be loaded."
+    },
     "secondswipe": {
       "title": "Second Swipe",
       "description": "What happens when the same card is swiped while already playing",

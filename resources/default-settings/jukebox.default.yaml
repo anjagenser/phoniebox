@@ -128,6 +128,16 @@ timers:
   volume_fade_out:
     default_time_per_iteration_sec: 900
     number_of_steps: 10
+# Quiet hours: block playback during a daily time window (may cross midnight)
+# and fade the volume out over the minutes leading up to the start time.
+quiet_hours:
+  enabled: false
+  start: '21:00'
+  end: '06:00'
+  # Length of the volume fade ramp before 'start' (minutes). 0 disables fading.
+  fade_minutes: 15
+  # How often the quiet-hours monitor checks the current time (seconds)
+  poll_interval_sec: 20
 host:
   # Do not actually execute system shutdown and reboot commands
   debug_mode: false

@@ -6,6 +6,7 @@ import jukebox.cfghandler
 import jukebox.plugs as plugin
 from jukebox.multitimer import GenericTimerClass
 from .idle_shutdown_timer import IdleShutdownTimer
+from .quiet_hours import QuietHours
 from .volume_fadeout_shutdown_timer import VolumeFadoutAndShutdown
 
 
@@ -33,6 +34,7 @@ timer_shutdown: GenericTimerClass
 timer_stop_player: GenericTimerClass
 timer_fade_volume: VolumeFadoutAndShutdown
 timer_idle_shutdown: IdleShutdownTimer
+quiet_hours: QuietHours
 
 
 @plugin.finalize
@@ -67,6 +69,13 @@ def finalize():
     timer_idle_shutdown = IdleShutdownTimer(package=plugin.loaded_as(__name__), idle_timeout=idle_timeout)
     plugin.register(timer_idle_shutdown, name='timer_idle_shutdown', package=plugin.loaded_as(__name__))
 
+    # Quiet Hours (block playback during a time window, fade volume beforehand)
+    global quiet_hours
+    poll_interval = cfg.setndefault('quiet_hours', 'poll_interval_sec', value=20)
+    quiet_hours = QuietHours(name=f"{plugin.loaded_as(__name__)}.quiet_hours", poll_interval=poll_interval)
+    quiet_hours.start()
+    plugin.register(quiet_hours, name='quiet_hours', package=plugin.loaded_as(__name__))
+
     # The idle Timer does work in a little sneaky way
     # Idle is when there are no calls through the plugin module
     # Ahh, but also when music is playing this is not idle...
@@ -85,6 +94,8 @@ def finalize():
 
 @plugin.atexit
 def atexit(**ignored_kwargs):
+    global quiet_hours
+    quiet_hours.cancel()
     global timer_shutdown
     timer_shutdown.cancel()
     global timer_stop_player
