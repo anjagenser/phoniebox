@@ -104,13 +104,11 @@ def atexit(**ignored_kwargs):
     timer_fade_volume.cancel()
     global timer_idle_shutdown
     timer_idle_shutdown.cancel()
-    global timer_idle_check
-    timer_idle_check.cancel()
     ret = [
         timer_shutdown.timer_thread,
         timer_stop_player.timer_thread,
         timer_fade_volume.timer_thread,
         timer_idle_shutdown.timer_thread,
-        timer_idle_check.timer_thread
+        quiet_hours.timer_thread,
     ]
     return ret
