@@ -49,7 +49,13 @@ const Outputs = () => {
         propEq('pulse_sink_name', active_sink)
       )(sink_list);
 
-      setActiveSink(activeSinkIndex);
+      // When the active sink can't be matched but there is only a single output
+      // available, that output is necessarily the active one: preselect it so the
+      // radio group is not left empty.
+      const resolvedSinkIndex =
+        activeSinkIndex === -1 && sink_list.length === 1 ? 0 : activeSinkIndex;
+
+      setActiveSink(resolvedSinkIndex);
       setSinkList(sink_list);
     }
 

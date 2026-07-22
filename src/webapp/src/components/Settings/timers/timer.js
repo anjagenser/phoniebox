@@ -116,21 +116,24 @@ const Timer = ({ type }) => {
   const timer = useTimer(type);
 
   return (
+    // Lay out text and actions with flexbox instead of an absolutely-positioned
+    // secondaryAction, so on narrow (mobile) screens the actions wrap below the
+    // text instead of overlapping the "Set timer" button.
     <ListItem
       disableGutters
-      secondaryAction={
-        <TimerActions
-          {...timer}
-          onSetTimer={timer.setTimer}
-          onCancelTimer={timer.cancelTimer}
-          onSetWaitSeconds={timer.setWaitSeconds}
-          type={type}
-        />
-      }
+      sx={{ flexWrap: 'wrap', gap: 1, justifyContent: 'space-between' }}
     >
       <ListItemText
         primary={t(`settings.timers.${type}.title`)}
         secondary={t(`settings.timers.${type}.label`)}
+        sx={{ flex: '1 1 auto', minWidth: 0, my: 0 }}
+      />
+      <TimerActions
+        {...timer}
+        onSetTimer={timer.setTimer}
+        onCancelTimer={timer.cancelTimer}
+        onSetWaitSeconds={timer.setWaitSeconds}
+        type={type}
       />
     </ListItem>
   );
