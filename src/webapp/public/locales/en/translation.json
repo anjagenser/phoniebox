@@ -133,7 +133,15 @@
     "overview": {
       "cards": "Cards",
       "loading-error": "An error occurred while loading cards list.",
-      "register-card": "Register a card"
+      "register-card": "Register a card",
+      "search-placeholder": "Search cards",
+      "no-results": "No cards match your search.",
+      "sort-label": "Sort by",
+      "sort": {
+        "id-asc": "Card ID (A–Z)",
+        "id-desc": "Card ID (Z–A)",
+        "name-asc": "Name (A–Z)"
+      }
     },
     "register": {
       "register-card": "Register a card"

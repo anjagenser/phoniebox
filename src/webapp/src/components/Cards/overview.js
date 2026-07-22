@@ -1,18 +1,28 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 
 import AddIcon from '@mui/icons-material/Add';
+import SearchIcon from '@mui/icons-material/Search';
 import CardsList from './list';
 import CircularProgress from '@mui/material/CircularProgress';
 import Fab from '@mui/material/Fab';
+import FormControl from '@mui/material/FormControl';
 import Grid from '@mui/material/Grid';
+import InputAdornment from '@mui/material/InputAdornment';
+import InputLabel from '@mui/material/InputLabel';
+import MenuItem from '@mui/material/MenuItem';
+import Select from '@mui/material/Select';
+import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 
 import Header from '../Header';
 import request from '../../utils/request';
+import { resolveCardDisplay } from './display';
 import { MINI_PLAYER_HEIGHT, NAV_HEIGHT, SAFE_AREA_BOTTOM } from '../Player/mini-player';
+
+const SORT_OPTIONS = ['id-asc', 'id-desc', 'name-asc'];
 
 const CardsOverview = () => {
   const navigate = useNavigate();
@@ -20,8 +30,11 @@ const CardsOverview = () => {
   const { t } = useTranslation();
 
   const [data, setData] = useState({});
+  const [details, setDetails] = useState({});
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [sort, setSort] = useState('id-asc');
 
   const openRegisterCard = () => {
     navigate('register');
@@ -33,16 +46,112 @@ const CardsOverview = () => {
       const { result, error } = await request('cardsList');
       setIsLoading(false);
 
-      if(result) setData(result);
-      if(error) setError(error);
+      if (result) setData(result);
+      if (error) setError(error);
     }
 
     loadCardList();
   }, []);
 
+  // Resolve names/covers for all cards once, so the list is searchable by the
+  // readable name (not just the raw URI/folder) and shows cover art.
+  useEffect(() => {
+    let active = true;
+    const ids = Object.keys(data);
+    if (!ids.length) return undefined;
+
+    (async () => {
+      const resolved = {};
+      await Promise.all(ids.map(async (id) => {
+        resolved[id] = await resolveCardDisplay(data[id]);
+      }));
+      if (active) setDetails(resolved);
+    })();
+
+    return () => { active = false; };
+  }, [data]);
+
+  const label = (id) =>
+    details[id]?.name || data[id]?.from_alias || id;
+
+  const visibleEntries = useMemo(() => {
+    const query = search.trim().toLowerCase();
+
+    const entries = Object.keys(data).map((id) => ({ id, card: data[id] }));
+
+    const matches = ({ id, card }) => {
+      if (!query) return true;
+      const haystack = [
+        id,
+        card.from_alias,
+        ...((card.action && card.action.args) || []),
+        details[id]?.name,
+      ].filter(Boolean).join(' ').toLowerCase();
+      return haystack.includes(query);
+    };
+
+    const sorters = {
+      'id-asc': (a, b) => a.id.localeCompare(b.id),
+      'id-desc': (a, b) => b.id.localeCompare(a.id),
+      'name-asc': (a, b) => label(a.id).localeCompare(label(b.id)),
+    };
+
+    return entries.filter(matches).sort(sorters[sort] || sorters['id-asc']);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, details, search, sort]);
+
+  const totalCards = Object.keys(data).length;
+  const noResults = !isLoading && totalCards > 0 && visibleEntries.length === 0;
+
   return (
     <Grid container id="cards">
       <Header title={t('cards.overview.cards')} />
+
+      {totalCards > 0 && (
+        <Grid
+          container
+          spacing={1}
+          alignItems="center"
+          sx={{ px: 1, mb: 1 }}
+        >
+          <Grid item xs={12} sm={8}>
+            <TextField
+              fullWidth
+              size="small"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder={t('cards.overview.search-placeholder')}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon fontSize="small" />
+                  </InputAdornment>
+                ),
+              }}
+            />
+          </Grid>
+          <Grid item xs={12} sm={4}>
+            <FormControl fullWidth size="small">
+              <InputLabel id="cards-sort-label">
+                {t('cards.overview.sort-label')}
+              </InputLabel>
+              <Select
+                labelId="cards-sort-label"
+                label={t('cards.overview.sort-label')}
+                value={sort}
+                onChange={(event) => setSort(event.target.value)}
+              >
+                {SORT_OPTIONS.map((option) => (
+                  <MenuItem key={option} value={option}>
+                    {t(`cards.overview.sort.${option}`)}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+        </Grid>
+      )}
+
       <Grid
         container
         spacing={1}
@@ -51,14 +160,18 @@ const CardsOverview = () => {
           justifyContent: 'center',
         }}
       >
-        {isLoading
-          ? <CircularProgress />
-          : <CardsList cardsList={data} />
-        }
+        {isLoading && <CircularProgress />}
+        {!isLoading && noResults && (
+          <Typography>{t('cards.overview.no-results')}</Typography>
+        )}
+        {!isLoading && !noResults && (
+          <CardsList entries={visibleEntries} details={details} />
+        )}
         {error &&
           <Typography>{t('cards.overview.loading-error')}</Typography>
         }
       </Grid>
+
       <Fab
         aria-label={t('cards.overview.register-card')}
         color="primary"

@@ -133,7 +133,15 @@
     "overview": {
       "cards": "Karten",
       "loading-error": "Während des Ladens der Karten ist ein Fehler aufgetreten",
-      "register-card": "Registriere eine Karte"
+      "register-card": "Registriere eine Karte",
+      "search-placeholder": "Karten durchsuchen",
+      "no-results": "Keine Karten entsprechen deiner Suche.",
+      "sort-label": "Sortieren nach",
+      "sort": {
+        "id-asc": "Karten-ID (A–Z)",
+        "id-desc": "Karten-ID (Z–A)",
+        "name-asc": "Name (A–Z)"
+      }
     },
     "register": {
       "register-card": "Registriere eine Karte"
