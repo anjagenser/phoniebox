@@ -11,7 +11,7 @@ import LibraryLists from './lists';
 const Library = () => {
   const { search: urlSearch } = useLocation();
   const lastListView =
-    `${localStorage.getItem('libraryLastListView') || 'albums'}${urlSearch}`;
+    `${localStorage.getItem('libraryLastListView') || 'folders'}${urlSearch}`;
 
   return (
     <Routes>

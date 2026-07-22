@@ -17,6 +17,10 @@ import request from '../../utils/request';
 
 const MINI_PLAYER_HEIGHT = 56;
 const NAV_HEIGHT = 65;
+// Extra space the mobile browser reserves at the bottom (home indicator /
+// dynamic toolbar). Without honouring it the fixed bottom bar hides behind the
+// device chrome and only appears after scrolling. Resolves to 0 where unset.
+const SAFE_AREA_BOTTOM = 'env(safe-area-inset-bottom, 0px)';
 
 const MiniPlayer = () => {
   const { t } = useTranslation();
@@ -34,7 +38,7 @@ const MiniPlayer = () => {
       square
       sx={{
         position: 'fixed',
-        bottom: NAV_HEIGHT,
+        bottom: `calc(${NAV_HEIGHT}px + ${SAFE_AREA_BOTTOM})`,
         left: 0,
         right: 0,
         height: MINI_PLAYER_HEIGHT,
@@ -103,5 +107,5 @@ const MiniPlayer = () => {
   );
 };
 
-export { MINI_PLAYER_HEIGHT, NAV_HEIGHT };
+export { MINI_PLAYER_HEIGHT, NAV_HEIGHT, SAFE_AREA_BOTTOM };
 export default MiniPlayer;

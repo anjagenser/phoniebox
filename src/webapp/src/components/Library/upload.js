@@ -13,7 +13,11 @@ import Snackbar from '@mui/material/Snackbar';
 import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 
+import { useTheme } from '@mui/material/styles';
+
 import UploadFileIcon from '@mui/icons-material/UploadFile';
+
+import { MINI_PLAYER_HEIGHT, NAV_HEIGHT, SAFE_AREA_BOTTOM } from '../Player/mini-player';
 
 const HOST = (window.location.hostname === 'localhost')
   ? '0.0.0.0'
@@ -23,6 +27,7 @@ const UPLOAD_URL = `http://${HOST}:8080/upload`;
 
 const Upload = () => {
   const { t } = useTranslation();
+  const theme = useTheme();
   const fileInputRef = useRef(null);
 
   const [open, setOpen] = useState(false);
@@ -103,7 +108,14 @@ const Upload = () => {
           color="primary"
           aria-label={t('library.upload.button-label')}
           onClick={handleOpen}
-          sx={{ position: 'fixed', bottom: 24, right: 24 }}
+          sx={{
+            position: 'fixed',
+            // Sit above the fixed MiniPlayer bar (which covers the lower band on
+            // every non-home page) instead of being hidden beneath it.
+            bottom: `calc(${NAV_HEIGHT + MINI_PLAYER_HEIGHT}px + ${SAFE_AREA_BOTTOM} + ${theme.spacing(2)})`,
+            right: theme.spacing(2),
+            zIndex: theme.zIndex.drawer + 1,
+          }}
         >
           <UploadFileIcon />
         </Fab>

@@ -12,7 +12,7 @@ import { useTheme } from '@mui/material/styles';
 
 import Header from '../Header';
 import request from '../../utils/request';
-import { MINI_PLAYER_HEIGHT, NAV_HEIGHT } from '../Player/mini-player';
+import { MINI_PLAYER_HEIGHT, NAV_HEIGHT, SAFE_AREA_BOTTOM } from '../Player/mini-player';
 
 const CardsOverview = () => {
   const navigate = useNavigate();
@@ -67,7 +67,7 @@ const CardsOverview = () => {
           position: 'fixed',
           // Sit above the fixed MiniPlayer bar (which covers the lower band on
           // every non-home page) instead of being hidden beneath it.
-          bottom: `calc(${NAV_HEIGHT + MINI_PLAYER_HEIGHT}px + ${theme.spacing(2)})`,
+          bottom: `calc(${NAV_HEIGHT + MINI_PLAYER_HEIGHT}px + ${SAFE_AREA_BOTTOM} + ${theme.spacing(2)})`,
           right: theme.spacing(2),
           zIndex: theme.zIndex.drawer + 1,
         }}

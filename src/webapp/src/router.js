@@ -5,7 +5,7 @@ import Cards from './components/Cards';
 import Library from './components/Library';
 import Navigation from './components/Navigation';
 import Player from './components/Player'
-import MiniPlayer, { MINI_PLAYER_HEIGHT, NAV_HEIGHT } from './components/Player/mini-player';
+import MiniPlayer, { MINI_PLAYER_HEIGHT, NAV_HEIGHT, SAFE_AREA_BOTTOM } from './components/Player/mini-player';
 import Settings from './components/Settings'
 
 import Grid from '@mui/material/Grid';
@@ -21,8 +21,8 @@ const AppLayout = () => {
         md={6}
         sx={{
           marginBottom: isHome
-            ? `${NAV_HEIGHT}px`
-            : `${NAV_HEIGHT + MINI_PLAYER_HEIGHT}px`,
+            ? `calc(${NAV_HEIGHT}px + ${SAFE_AREA_BOTTOM})`
+            : `calc(${NAV_HEIGHT + MINI_PLAYER_HEIGHT}px + ${SAFE_AREA_BOTTOM})`,
         }}
       >
         <Routes>

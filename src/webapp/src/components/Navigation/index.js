@@ -9,6 +9,8 @@ import HomeIcon from '@mui/icons-material/Home';
 import MusicNoteIcon from '@mui/icons-material/MusicNote';
 import SettingsIcon from '@mui/icons-material/Settings';
 
+import { NAV_HEIGHT, SAFE_AREA_BOTTOM } from '../Player/mini-player';
+
 export default function Navigation() {
   const { t } = useTranslation();
   const { pathname } = useLocation();
@@ -33,7 +35,11 @@ export default function Navigation() {
         width: '100%',
         position: 'fixed',
         bottom: '0px',
-        height: '65px',
+        height: `${NAV_HEIGHT}px`,
+        // Pad the device safe area below the actions so the bar is not hidden
+        // behind the mobile home indicator / browser chrome.
+        boxSizing: 'content-box',
+        paddingBottom: SAFE_AREA_BOTTOM,
       }}
     >
       <BottomNavigationAction
