@@ -36,6 +36,8 @@
       "controls-selector": {
         "label": "Jukebox Aktion"
       },
+      "test": "Testen",
+      "test-playing": "Vorschau wird abgespielt",
       "select-command-aliases": {
         "label": "Aktionen",
         "placeholder": "Wähle eine Aktion aus",

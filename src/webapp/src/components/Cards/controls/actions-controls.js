@@ -3,19 +3,27 @@ import { useNavigate, useParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
 
 import {
+  Box,
   Button,
   CardActions,
 } from '@mui/material';
+import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 
 import CardsAssignWarningDialog from '../dialogs/assign-warning';
 import CardsDeleteDialog from '../dialogs/delete';
 import request from '../../../utils/request';
 import { emit } from '../../../context/toast/events';
 import {
+  buildCommandKwargs,
   getActionAndCommand,
   getArgsValues,
   getAssignmentWarnings,
 } from '../utils';
+
+// Music commands that can be previewed ("play now") from the editor. Other
+// actions (shutdown, timers, ...) are intentionally excluded to avoid triggering
+// side effects while editing a card.
+const PLAYABLE_COMMANDS = ['play_uri', 'play_folder', 'play_album', 'play_single'];
 
 const ActionsControls = ({
   actionData,
@@ -78,6 +86,21 @@ const ActionsControls = ({
     await registerCard();
   };
 
+  const { command: currentCommand } = getActionAndCommand(actionData);
+  const currentArgs = getArgsValues(actionData);
+  const canTest =
+    PLAYABLE_COMMANDS.includes(currentCommand) &&
+    currentArgs.length > 0 &&
+    currentArgs.every((value) => value !== undefined && value !== null && value !== '');
+
+  const handleTest = async () => {
+    const kwargs = buildCommandKwargs(currentCommand, currentArgs);
+    const { error } = await request(currentCommand, kwargs);
+    if (!error) {
+      emit('info', t('cards.controls.test-playing'));
+    }
+  };
+
   const handleDeleteCard = async () => {
     const { error } = await request('deleteCard', { card_id: cardId });
 
@@ -107,13 +130,26 @@ const ActionsControls = ({
             {t('general.buttons.delete')}
           </Button>
         }
-        <Button
-          color="primary"
-          onClick={() => handleRegisterCard(cardId)}
-          size="small"
-        >
-          {t('general.buttons.save')}
-        </Button>
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          {canTest &&
+            <Button
+              color="primary"
+              size="small"
+              startIcon={<PlayArrowIcon />}
+              onClick={handleTest}
+            >
+              {t('cards.controls.test')}
+            </Button>
+          }
+          <Button
+            color="primary"
+            variant="contained"
+            onClick={() => handleRegisterCard(cardId)}
+            size="small"
+          >
+            {t('general.buttons.save')}
+          </Button>
+        </Box>
       </CardActions>
       <CardsDeleteDialog
         open={deleteDialogOpen}

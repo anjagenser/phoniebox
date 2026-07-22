@@ -67,6 +67,16 @@ const getArgsValues = (actionData) => {
   );
 };
 
+// Build a kwargs object for an RPC command from an ordered args array,
+// using the command's declared argKeys (e.g. play_album -> {albumartist, album}).
+const buildCommandKwargs = (command, args = []) => {
+  const argKeys = getCommandArgKeys(command);
+  return argKeys.reduce(
+    (acc, key, index) => ({ ...acc, [key]: args[index] }),
+    {}
+  );
+};
+
 const normalizeArgs = (args) =>
   (args || []).map((arg) => (arg === null || arg === undefined ? '' : String(arg)));
 
@@ -114,6 +124,7 @@ const getAssignmentWarnings = ({ cardId, cardsList = {}, command, args }) => {
 export {
   argsAreEqual,
   buildActionData,
+  buildCommandKwargs,
   findActionByCommand,
   getActionAndCommand,
   getArgsValues,
