@@ -300,7 +300,9 @@
       "end": "Ende",
       "fade-label": "Dauer der Ausblendung vor dem Start: {{minutes}} Min.",
       "load-error": "Die Ruhezeiten-Einstellungen konnten nicht geladen werden.",
-      "saved": "Ruhezeiten gespeichert"
+      "saved": "Ruhezeiten gespeichert",
+      "status-active": "Jetzt aktiv",
+      "status-fading": "Wird ausgeblendet"
     },
     "secondswipe": {
       "title": "Erneute Aktivierung (Second Swipe)",

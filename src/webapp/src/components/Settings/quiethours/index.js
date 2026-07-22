@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import {
@@ -7,6 +7,7 @@ import {
   Card,
   CardContent,
   CardHeader,
+  Chip,
   CircularProgress,
   Divider,
   FormControlLabel,
@@ -17,6 +18,9 @@ import {
   Typography,
 } from '@mui/material';
 
+import BedtimeIcon from '@mui/icons-material/Bedtime';
+
+import PubSubContext from '../../../context/pubsub/context';
 import request from '../../../utils/request';
 import { emit } from '../../../context/toast/events';
 
@@ -29,6 +33,8 @@ const DEFAULT_CONFIG = {
 
 const SettingsQuietHours = () => {
   const { t } = useTranslation();
+  const { state: pubsubState } = useContext(PubSubContext);
+  const liveState = pubsubState['quiet_hours.state'];
 
   const [config, setConfig] = useState(DEFAULT_CONFIG);
   const [saved, setSaved] = useState(DEFAULT_CONFIG);
@@ -78,7 +84,26 @@ const SettingsQuietHours = () => {
     <Card>
       <CardHeader
         title={t('settings.quiethours.title')}
-        action={(isLoading || isSaving) ? <CircularProgress size={20} sx={{ m: 1 }} /> : null}
+        action={
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, m: 1 }}>
+            {liveState?.active && (
+              <Chip
+                size="small"
+                color="secondary"
+                icon={<BedtimeIcon />}
+                label={t('settings.quiethours.status-active')}
+              />
+            )}
+            {liveState && !liveState.active && liveState.fading && (
+              <Chip
+                size="small"
+                variant="outlined"
+                label={t('settings.quiethours.status-fading')}
+              />
+            )}
+            {(isLoading || isSaving) && <CircularProgress size={20} />}
+          </Box>
+        }
       />
       <Divider />
       <CardContent>

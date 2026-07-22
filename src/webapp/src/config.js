@@ -13,8 +13,10 @@ const SUBSCRIPTIONS = [
   'host.timer.cputemp',
   'host.temperature.cpu',
   'playerstatus',
+  'quiet_hours.state',
   'rfid.card_id',
   'volume.level',
+  'volume.sink',
 ];
 
 const ROOT_DIR = './';

@@ -12,6 +12,7 @@ import jukebox  # noqa: E402
 jukebox.cfghandler = MagicMock()
 sys.modules['jukebox.cfghandler'] = jukebox.cfghandler
 sys.modules['jukebox.plugs'] = MagicMock()
+sys.modules['jukebox.publishing'] = MagicMock()
 sys.modules['jukebox.multitimer'] = MagicMock()
 
 from components.timers.quiet_hours import (  # noqa: E402

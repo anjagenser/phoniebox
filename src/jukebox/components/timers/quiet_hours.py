@@ -20,6 +20,7 @@ import logging
 
 import jukebox.cfghandler
 import jukebox.plugs as plugin
+import jukebox.publishing as publishing
 from jukebox.multitimer import GenericEndlessTimerClass
 
 logger = logging.getLogger('jb.timers.quiet')
@@ -90,6 +91,8 @@ class QuietHours:
         # Remember previous tick's state for edge handling (enter/leave)
         self._was_quiet = False
         self._was_fading = False
+        # Last state dict published to the web app, to avoid redundant messages
+        self._last_published = None
         with cfg:
             cfg.setndefault('quiet_hours', 'enabled', value=False)
             cfg.setndefault('quiet_hours', 'start', value='21:00')
@@ -100,6 +103,7 @@ class QuietHours:
         self._timer = GenericEndlessTimerClass(
             f"{self.name}_monitor", self.poll_interval, self._tick)
         self._timer.start()
+        self._publish_state()
 
     def cancel(self):
         if self._timer and self._timer.is_alive():
@@ -126,8 +130,20 @@ class QuietHours:
     def _tick(self):
         try:
             self._evaluate(self._now_minutes())
+            self._publish_state()
         except Exception as e:
             logger.error(f"Quiet-hours tick failed: {e.__class__.__name__}: {e}")
+
+    def _publish_state(self):
+        """Publish the current state to the web app when it changes."""
+        try:
+            state = self.get_state()
+        except Exception as e:
+            logger.error(f"Quiet-hours state build failed: {e.__class__.__name__}: {e}")
+            return
+        if state != self._last_published:
+            self._last_published = state
+            publishing.get_publisher().send('quiet_hours.state', state)
 
     def _evaluate(self, now_min):
         conf = self._read_config()
@@ -214,6 +230,7 @@ class QuietHours:
         # Apply immediately so toggling during the window takes effect at once
         try:
             self._evaluate(self._now_minutes())
+            self._publish_state()
         except Exception as e:
             logger.error(f"Quiet-hours immediate apply failed: {e.__class__.__name__}: {e}")
         return self._read_config()

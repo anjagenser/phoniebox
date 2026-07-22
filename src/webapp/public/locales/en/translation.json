@@ -300,7 +300,9 @@
       "end": "End",
       "fade-label": "Fade-out duration before start: {{minutes}} min",
       "load-error": "Quiet-hours settings could not be loaded.",
-      "saved": "Quiet hours saved"
+      "saved": "Quiet hours saved",
+      "status-active": "Active now",
+      "status-fading": "Fading out"
     },
     "secondswipe": {
       "title": "Second Swipe",

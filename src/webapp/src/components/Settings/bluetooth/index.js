@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import {
@@ -25,11 +25,16 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import HeadphonesIcon from '@mui/icons-material/Headphones';
 import SearchIcon from '@mui/icons-material/Search';
 
+import PubSubContext from '../../../context/pubsub/context';
 import request from '../../../utils/request';
 import { emit } from '../../../context/toast/events';
 
 const SettingsBluetooth = () => {
   const { t } = useTranslation();
+  const { state: pubsubState } = useContext(PubSubContext);
+  // Active audio sink is republished on Bluetooth connect/disconnect (the volume
+  // component auto-routes to the headset), so use it to refresh device state.
+  const activeSink = pubsubState['volume.sink']?.active_sink;
 
   const [available, setAvailable] = useState(true);
   const [devices, setDevices] = useState([]);
@@ -50,7 +55,7 @@ const SettingsBluetooth = () => {
 
   useEffect(() => {
     loadDevices();
-  }, [loadDevices]);
+  }, [loadDevices, activeSink]);
 
   const handleScan = async () => {
     setIsScanning(true);

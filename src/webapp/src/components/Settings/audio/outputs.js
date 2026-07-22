@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { findIndex, propEq } from 'ramda';
 
@@ -12,10 +12,13 @@ import {
   Typography,
 } from '@mui/material';
 
+import PubSubContext from '../../../context/pubsub/context';
 import request from '../../../utils/request';
 
 const Outputs = () => {
   const { t } = useTranslation();
+  const { state: pubsubState } = useContext(PubSubContext);
+  const publishedSink = pubsubState['volume.sink'];
 
   const [activeSink, setActiveSink] = useState(null);
   const [sinkList, setSinkList] = useState([]);
@@ -61,6 +64,17 @@ const Outputs = () => {
 
     fetchAudioOutputs();
   }, []);
+
+  // Keep the selected radio in sync when the active sink is republished
+  // (e.g. a Bluetooth headset connects and audio is auto-routed to it).
+  useEffect(() => {
+    if (publishedSink?.active_sink && sinkList.length) {
+      const index = findIndex(
+        propEq('pulse_sink_name', publishedSink.active_sink)
+      )(sinkList);
+      if (index !== -1) setActiveSink(index);
+    }
+  }, [publishedSink, sinkList]);
 
   return (
     <Grid container direction="column">
