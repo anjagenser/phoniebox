@@ -424,3 +424,9 @@ def atexit(**ignored_kwargs):
     global timer_temperature
     timer_temperature.cancel()
     return timer_temperature.timer_thread
+
+
+# Bluetooth headset management (pair / connect / disconnect / remove).
+# Imported for its side effect: registering its functions under the 'host'
+# plugin package. Placed at the end so the 'host' package is already set up.
+from . import bluetooth  # noqa: E402,F401

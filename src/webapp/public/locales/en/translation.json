@@ -353,6 +353,18 @@
         "max-volume": "Maximum Volume"
       }
     },
+    "bluetooth": {
+      "title": "Bluetooth",
+      "description": "Pair a Bluetooth headset or speaker. Once connected, audio is switched to it automatically.",
+      "scan": "Scan",
+      "pair": "Pair",
+      "connect": "Connect",
+      "disconnect": "Disconnect",
+      "remove": "Remove",
+      "connected": "Connected",
+      "no-devices": "No Bluetooth devices found. Put your headset in pairing mode and scan.",
+      "not-available": "Bluetooth is not available on this device."
+    },
     "systemcontrols": {
       "title": "System Controls"
     }

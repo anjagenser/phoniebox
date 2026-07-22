@@ -351,6 +351,18 @@
         "max-volume": "Maximale Lautstärke"
       }
     },
+    "bluetooth": {
+      "title": "Bluetooth",
+      "description": "Verbinde ein Bluetooth-Headset oder einen Lautsprecher. Sobald verbunden, wird der Ton automatisch dorthin umgeschaltet.",
+      "scan": "Suchen",
+      "pair": "Koppeln",
+      "connect": "Verbinden",
+      "disconnect": "Trennen",
+      "remove": "Entfernen",
+      "connected": "Verbunden",
+      "no-devices": "Keine Bluetooth-Geräte gefunden. Versetze dein Headset in den Kopplungsmodus und starte die Suche.",
+      "not-available": "Bluetooth ist auf diesem Gerät nicht verfügbar."
+    },
     "systemcontrols": {
       "title": "Systemsteuerung"
     }

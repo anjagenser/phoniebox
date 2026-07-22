@@ -289,6 +289,41 @@ const commands = {
     _package: 'host',
     plugin: 'get_ip_address',
   },
+
+  // Bluetooth
+  bluetoothAvailable: {
+    _package: 'host',
+    plugin: 'bluetooth_available',
+  },
+  bluetoothDevices: {
+    _package: 'host',
+    plugin: 'bluetooth_devices',
+  },
+  bluetoothScan: {
+    _package: 'host',
+    plugin: 'bluetooth_scan',
+    argKeys: ['timeout'],
+  },
+  bluetoothPair: {
+    _package: 'host',
+    plugin: 'bluetooth_pair',
+    argKeys: ['mac'],
+  },
+  bluetoothConnect: {
+    _package: 'host',
+    plugin: 'bluetooth_connect',
+    argKeys: ['mac'],
+  },
+  bluetoothDisconnect: {
+    _package: 'host',
+    plugin: 'bluetooth_disconnect',
+    argKeys: ['mac'],
+  },
+  bluetoothRemove: {
+    _package: 'host',
+    plugin: 'bluetooth_remove',
+    argKeys: ['mac'],
+  },
   getDiskUsage: {
     _package: 'host',
     plugin: 'get_disk_usage',
