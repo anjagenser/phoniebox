@@ -43,46 +43,61 @@ const initSockets = ({ setState, events }) => {
   socketEvents({ setState, events });
 };
 
+// Reject a request that never receives a reply, so callers don't hang forever.
+const REQUEST_TIMEOUT_MS = 15000;
+
+// Each request gets its own short-lived Req socket. The backend is a single ZMQ
+// REP socket that fair-queues across peers, so concurrent requests each get their
+// own socket and reply correctly. Using a local socket (instead of a shared
+// property) avoids concurrent callers clobbering each other's connection, and the
+// socket is always closed once the request settles (success, error or timeout).
 const socketRequest = (_package, plugin, method, kwargs) => (
   new Promise((resolve, reject) => {
     const requestId = uuidv4();
+    const server = new zmq.Req();
 
-    socketRequest.server = new zmq.Req();
+    let settled = false;
+    let timer = null;
 
-    socketRequest.server.on('message', (msg) => {
+    const settle = (fn, value) => {
+      if (settled) return;
+      settled = true;
+      if (timer) clearTimeout(timer);
+      try {
+        server.close();
+      } catch (e) {
+        // ignore close errors on an already-torn-down socket
+      }
+      fn(value);
+    };
+
+    server.on('message', (msg) => {
       const { id, error, result } = decodeMessage(msg);
 
       if (error && error.message) {
-        return reject(error.message);
+        return settle(reject, error.message);
       }
-
-      // This implementation of Req Sockets is not ideal for parallel
-      // requests. In case 2 requests are launched at the same time
-      // both connect to the socket. The first one to return would
-      // close the channel which cancels the second request without
-      // allowing to receive the data. Not closing the channel
-      // here is not ideal, but it's not harmful either.
-      // Ideally, we outsouce `socketRequest.server` similar to
-      // `socket_sub`
-      // socketRequest.server.close();
 
       if (id && id === requestId) {
-        return resolve(result);
+        return settle(resolve, result);
       }
-      else {
-        return reject('Received socket message ID does not match sender ID.');
-      }
+
+      return settle(reject, 'Received socket message ID does not match sender ID.');
     });
 
-    socketRequest.server.onerror = function (err) {
-      reject(err);
-    };
+    server.onerror = (err) => settle(reject, err);
+
+    timer = setTimeout(() => {
+      const target = `${_package}.${plugin}${method ? `.${method}` : ''}`;
+      settle(reject, new Error(`Request '${target}' timed out`));
+    }, REQUEST_TIMEOUT_MS);
 
     try {
-      socketRequest.server.connect(REQRES_ENDPOINT);
+      server.connect(REQRES_ENDPOINT);
     }
     catch (error) {
-      console.error(`WebSocket connection to '${REQRES_ENDPOINT} failed: `, error);
+      console.error(`WebSocket connection to '${REQRES_ENDPOINT}' failed: `, error);
+      return settle(reject, error);
     }
 
     const payload = preparePayload(
@@ -92,7 +107,7 @@ const socketRequest = (_package, plugin, method, kwargs) => (
       method,
       kwargs,
     );
-    socketRequest.server.send(encodeMessage(payload));
+    server.send(encodeMessage(payload));
   })
 );
 
