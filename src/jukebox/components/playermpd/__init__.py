@@ -239,7 +239,29 @@ class PlayerMPD:
         return self.status_thread.timer_thread
 
     def connect(self):
-        self.mpd_client.connect(self.mpd_host, 6600)
+        # At boot the jukebox daemon may come up before the MPD/Mopidy frontend
+        # is listening on 6600. Without retrying, a single ConnectionRefusedError
+        # aborts the whole 'player' plugin load and 'ctrl' never gets registered,
+        # leaving the library dead until a manual restart. Retry with backoff so
+        # a slow-to-start backend is tolerated.
+        connect_timeout = float(cfg.setndefault('playermpd', 'connect_timeout', value=30))
+        deadline = time.monotonic() + connect_timeout
+        attempt = 0
+        while True:
+            attempt += 1
+            try:
+                self.mpd_client.connect(self.mpd_host, 6600)
+                if attempt > 1:
+                    logger.info(f"Connected to MPD at {self.mpd_host}:6600 after {attempt} attempts")
+                return
+            except (ConnectionRefusedError, OSError, mpd.base.ConnectionError) as e:
+                if time.monotonic() >= deadline:
+                    logger.error(f"Giving up connecting to MPD at {self.mpd_host}:6600 "
+                                 f"after {connect_timeout:.0f}s ({attempt} attempts)")
+                    raise
+                logger.warning(f"MPD not ready at {self.mpd_host}:6600 "
+                               f"({type(e).__name__}); retrying...")
+                time.sleep(1.0)
 
     def decode_2nd_swipe_option(self):
         cfg_2nd_swipe_action = cfg.setndefault('playermpd', 'second_swipe_action', 'alias', value='none').lower()

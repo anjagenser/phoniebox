@@ -213,6 +213,13 @@ class _UploadHandler(BaseHTTPRequestHandler):
                 errors.append(filename)
                 logger.error(f"Failed to save {filename}: {e}")
 
+        # Newly written files are only on disk; MPD still needs to scan them
+        # into its database, otherwise the album view (which queries MPD) stays
+        # empty even though the upload succeeded. Wait for the scan so the file
+        # is browsable by the time the client refreshes.
+        if saved:
+            plugin.call_ignore_errors('player', 'ctrl', 'update_wait')
+
         if errors:
             self._send_text(500, f"Saved {len(saved)}, failed: {', '.join(errors)}")
         else:
