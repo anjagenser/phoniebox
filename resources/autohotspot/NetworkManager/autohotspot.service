@@ -1,7 +1,9 @@
 [Unit]
 Description=Automatically generates an wifi hotspot when a valid SSID is not in range
 After=multi-user.target
-Requires=network-online.target
+# Soft dependency only: this service decides whether a network exists, so it must
+# not block boot on network-online.target (that wait added ~6s to boot).
+Wants=network-online.target
 
 [Service]
 Type=simple
