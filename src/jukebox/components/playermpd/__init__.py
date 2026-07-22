@@ -83,8 +83,10 @@ sudo -u mpd speaker-test -t wav -c 2
 
 import os
 import re
+import json
 import subprocess
 import urllib.parse
+import urllib.request
 import mpd
 import threading
 import logging
@@ -107,6 +109,10 @@ from .coverart_cache_manager import CoverartCacheManager
 
 logger = logging.getLogger('jb.PlayerMPD')
 cfg = jukebox.cfghandler.get_handler('jukebox')
+
+# Cache of resolved URI -> human-readable name, so the web app can render a
+# readable card list without hitting Mopidy on every request.
+_uri_name_cache = {}
 
 
 class MpdLock:
@@ -686,6 +692,70 @@ class PlayerMPD:
             if self.current_folder_status is None:
                 self.current_folder_status = self.music_player_status['audio_folder_status'][uri] = {}
             self.mpd_client.play()
+
+    def _mopidy_rpc(self, method: str, params: dict):
+        """Call Mopidy's HTTP JSON-RPC API and return the ``result`` field.
+
+        Uses the same host as the MPD connection and Mopidy's default HTTP port
+        (6680, configurable via ``playermpd.mopidy_http_port``). Raises on a
+        transport error or a JSON-RPC error response.
+        """
+        host = self.mpd_host or 'localhost'
+        port = cfg.setndefault('playermpd', 'mopidy_http_port', value=6680)
+        url = f'http://{host}:{port}/mopidy/rpc'
+        payload = json.dumps({
+            'jsonrpc': '2.0', 'id': 1, 'method': method, 'params': params
+        }).encode('utf-8')
+        request = urllib.request.Request(
+            url, data=payload, headers={'Content-Type': 'application/json'})
+        with urllib.request.urlopen(request, timeout=3) as response:
+            data = json.loads(response.read().decode('utf-8'))
+        if data.get('error') is not None:
+            raise RuntimeError(data['error'])
+        return data.get('result')
+
+    @plugs.tag
+    def get_uri_name(self, uri: str):
+        """Resolve a playback URI to a human-readable name.
+
+        For Spotify URIs (and other Mopidy-backed URIs) this returns the name of
+        the playlist, album, artist or track, so the web app can show a readable
+        label on the cards tab instead of the raw URI. Returns ``None`` when the
+        name cannot be resolved (real MPD backend, Mopidy unreachable, or an
+        unknown/invalid URI).
+        """
+        if not uri:
+            return None
+        uri = components.player.uri.normalize_uri(uri)
+        if getattr(self, 'player_backend', 'mpd') != 'mopidy':
+            return None
+        if uri in _uri_name_cache:
+            return _uri_name_cache[uri]
+
+        name = None
+        try:
+            if ':playlist:' in uri:
+                playlist = self._mopidy_rpc('core.playlists.lookup', {'uri': uri})
+                if playlist:
+                    name = playlist.get('name')
+            else:
+                result = self._mopidy_rpc('core.library.lookup', {'uris': [uri]})
+                tracks = (result or {}).get(uri) or []
+                if tracks:
+                    track = tracks[0]
+                    if ':album:' in uri:
+                        name = (track.get('album') or {}).get('name')
+                    elif ':artist:' in uri:
+                        artists = track.get('artists') or []
+                        name = artists[0].get('name') if artists else None
+                    else:
+                        name = track.get('name')
+        except Exception as e:
+            logger.debug(f"get_uri_name('{uri}') failed: {e.__class__.__name__}: {e}")
+            return None
+
+        _uri_name_cache[uri] = name
+        return name
 
     @plugs.tag
     def resume(self):

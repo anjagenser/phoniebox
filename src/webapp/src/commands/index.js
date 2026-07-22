@@ -30,6 +30,12 @@ const commands = {
     method: 'get_song_by_url',
     argKeys: ['song_url']
   },
+  getUriName: {
+    _package: 'player',
+    plugin: 'ctrl',
+    method: 'get_uri_name',
+    argKeys: ['uri'],
+  },
   folderList: {
     _package: 'player',
     plugin: 'ctrl',
