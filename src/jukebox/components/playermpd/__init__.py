@@ -82,6 +82,9 @@ sudo -u mpd speaker-test -t wav -c 2
 # werden. Bei Wifi also braucht man 3 Funktionen: on / off / toggle. Toggle ist dann first swipe / second swipe
 
 import os
+import re
+import subprocess
+import urllib.parse
 import mpd
 import threading
 import logging
@@ -193,6 +196,7 @@ class PlayerMPD:
         self.mpd_client.idletimeout = None           # timeout for fetching the result of the idle command
         self.connect()
         logger.info(f"Connected to MPD Version: {self.mpd_client.mpd_version}")
+        self.player_backend = self._detect_backend()
 
         self.current_folder_status = {}
         if not self.music_player_status:
@@ -262,6 +266,45 @@ class PlayerMPD:
                 logger.warning(f"MPD not ready at {self.mpd_host}:6600 "
                                f"({type(e).__name__}); retrying...")
                 time.sleep(1.0)
+
+    def _detect_backend(self) -> str:
+        """Return the active player backend: ``'mopidy'`` or ``'mpd'``.
+
+        Mopidy's MPD frontend and real MPD accept different URIs for local
+        files (see :meth:`_music_file_uri`), so we must know which one we talk
+        to. The backend can be forced via the ``playermpd.backend`` config key;
+        otherwise it is auto-detected. Mopidy's MPD frontend always advertises
+        protocol version ``0.19.0``, which no current real MPD reports.
+        """
+        backend = str(cfg.setndefault('playermpd', 'backend', value='auto')).lower()
+        if backend in ('mopidy', 'mpd'):
+            logger.info(f"Player backend forced to '{backend}' via config")
+            return backend
+        try:
+            version = str(self.mpd_client.mpd_version)
+        except Exception:
+            version = ''
+        detected = 'mopidy' if version == '0.19.0' else 'mpd'
+        logger.info(f"Detected player backend '{detected}' (MPD protocol version '{version}')")
+        return detected
+
+    def _music_file_uri(self, path: str) -> str:
+        """Convert a music-library file path into a URI the backend understands.
+
+        The playlist generator yields absolute filesystem paths. Real MPD wants
+        a path relative to its music directory, while Mopidy-Local wants a
+        URL-encoded ``local:track:`` URI. Passing a raw filesystem path to
+        Mopidy drops the connection, so this conversion is required. Values that
+        already carry a URI scheme (``spotify:``, ``http:``, ``local:`` ...) are
+        returned unchanged.
+        """
+        if re.match(r'^[a-zA-Z][a-zA-Z0-9+.\-]*:', path):
+            return path
+        base = components.player.get_music_library_path()
+        relpath = os.path.relpath(path, base) if (base and os.path.isabs(path)) else path
+        if getattr(self, 'player_backend', 'mpd') == 'mopidy':
+            return 'local:track:' + urllib.parse.quote(relpath)
+        return relpath
 
     def decode_2nd_swipe_option(self):
         cfg_2nd_swipe_action = cfg.setndefault('playermpd', 'second_swipe_action', 'alias', value='none').lower()
@@ -368,14 +411,42 @@ class PlayerMPD:
             value = self.mpd_client.mpd_version()
         return value
 
+    def _mopidy_local_scan(self):
+        """Rescan the local library on a Mopidy backend.
+
+        Mopidy ignores the MPD ``update`` command for local files; the library
+        is refreshed by running ``mopidy local scan`` as a separate process. The
+        running Mopidy picks up the changes without a restart. The command is
+        configurable via ``playermpd.library.mopidy_scan_command``.
+        """
+        cmd = cfg.setndefault('playermpd', 'library', 'mopidy_scan_command',
+                              value=['mopidy', 'local', 'scan'])
+        if isinstance(cmd, str):
+            cmd = cmd.split()
+        logger.info(f"Running Mopidy local scan: {' '.join(cmd)}")
+        try:
+            result = subprocess.run(cmd, capture_output=True, timeout=600)
+            if result.returncode != 0:
+                logger.error(f"Mopidy local scan failed (rc={result.returncode}): "
+                             f"{result.stderr.decode(errors='replace')[-500:]}")
+        except (OSError, subprocess.TimeoutExpired) as e:
+            logger.error(f"Mopidy local scan error: {e.__class__.__name__}: {e}")
+
     @plugs.tag
     def update(self):
+        if getattr(self, 'player_backend', 'mpd') == 'mopidy':
+            self._mopidy_local_scan()
+            return 0
         with self.mpd_lock:
             state = self.mpd_client.update()
         return state
 
     @plugs.tag
     def update_wait(self):
+        # On Mopidy the scan is already synchronous, so there is nothing to wait for
+        if getattr(self, 'player_backend', 'mpd') == 'mopidy':
+            self._mopidy_local_scan()
+            return 0
         state = self.update()
         self._db_wait_for_update(state)
         return state
@@ -577,7 +648,7 @@ class PlayerMPD:
     def play_single(self, song_url):
         with self.mpd_lock:
             self.mpd_client.clear()
-            self.mpd_client.addid(song_url)
+            self.mpd_client.addid(self._music_file_uri(song_url))
             self.mpd_client.play()
 
     @plugs.tag
@@ -769,7 +840,7 @@ class PlayerMPD:
             uri = '--unset--'
             try:
                 for uri in plc:
-                    self.mpd_client.addid(uri)
+                    self.mpd_client.addid(self._music_file_uri(uri))
             except mpd.base.CommandError as e:
                 logger.error(f"{e.__class__.__qualname__}: {e} at uri {uri}")
             except Exception as e:
