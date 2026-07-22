@@ -8,6 +8,19 @@ OPTIMIZE_BOOT_CMDLINE_OPTIONS_IPV6="ipv6.disable=1"
 OPTIMIZE_DHCP_CONF_HEADER="## Jukebox DHCP Config"
 OPTIMIZE_BOOT_CONF_HEADER="## Jukebox Boot Config"
 
+# Disable a unit only if it is actually installed, so absent optional units
+# (which differ across Raspberry Pi OS / Debian images) do not error the install.
+_disable_service_if_present() {
+  local unit="$1"
+  if [[ "$(_get_service_enablement "${unit}")" != "not-found" ]] \
+     && [[ -n "$(_get_service_enablement "${unit}")" ]]; then
+    log "  Disable ${unit}"
+    sudo systemctl disable --now "${unit}"
+  else
+    log "  INFO: optional unit ${unit} not installed, skipping"
+  fi
+}
+
 _optimize_disable_irrelevant_services() {
   log "  Disable keyboard-setup.service"
   sudo systemctl disable keyboard-setup.service
@@ -24,6 +37,30 @@ _optimize_disable_irrelevant_services() {
   sudo systemctl disable apt-daily-upgrade.service
   sudo systemctl disable apt-daily.timer
   sudo systemctl disable apt-daily-upgrade.timer
+
+  # Do not block boot waiting for the network to be fully online. The Jukebox
+  # and its player come up fine without it, and autohotspot decides for itself
+  # whether a network exists. On a Pi this wait routinely cost ~6s of boot.
+  _disable_service_if_present NetworkManager-wait-online.service
+  _disable_service_if_present systemd-networkd-wait-online.service
+
+  # cloud-init provisions cloud VM instances and has no purpose on an appliance.
+  # It is pulled in by some Debian/RPi images and added ~3s to boot.
+  if [[ ! -f /etc/cloud/cloud-init.disabled ]] && dpkg -s cloud-init >/dev/null 2>&1; then
+    log "  Disable cloud-init"
+    sudo touch /etc/cloud/cloud-init.disabled
+  fi
+
+  # nmbd is the Samba NetBIOS name service (legacy Windows name resolution).
+  # The file share is served by smbd alone; nmbd just adds ~1.5s to boot.
+  _disable_service_if_present nmbd.service
+}
+
+# Start the user systemd instance (and therefore the --user Jukebox, Mopidy and
+# audio services) at boot without waiting for an interactive login session.
+_optimize_enable_user_linger() {
+  log "  Enable systemd linger for ${CURRENT_USER}"
+  sudo loginctl enable-linger "${CURRENT_USER}"
 }
 
 _add_options_to_cmdline() {
@@ -157,6 +194,9 @@ _optimize_check() {
     verify_optional_service_enablement apt-daily-upgrade.service disabled
     verify_optional_service_enablement apt-daily.timer disabled
     verify_optional_service_enablement apt-daily-upgrade.timer disabled
+    verify_optional_service_enablement NetworkManager-wait-online.service disabled
+    verify_optional_service_enablement systemd-networkd-wait-online.service disabled
+    verify_optional_service_enablement nmbd.service disabled
 
     if [ "$DISABLE_BLUETOOTH" = true ] ; then
         verify_optional_service_enablement hciuart.service disabled
@@ -196,6 +236,7 @@ _optimize_check() {
 
 _run_optimize_boot_time() {
     _optimize_disable_irrelevant_services
+    _optimize_enable_user_linger
     _optimize_handle_boot_screen
     _optimize_handle_boot_logs
     _optimize_handle_bluetooth
