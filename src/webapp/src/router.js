@@ -20,7 +20,17 @@ const AppLayout = () => {
         item xs={12}
         md={6}
         sx={{
-          marginBottom: isHome
+          // Scroll the page content INSIDE this pane rather than letting the
+          // document body scroll. On Gecko-based mobile browsers (e.g. iodé),
+          // once the folder list makes the body tall enough to scroll, the
+          // fixed bottom navigation is repositioned relative to the grown
+          // document and pushed off-screen (and scrolling does not recover it).
+          // Capping this pane to the viewport height keeps the body from
+          // scrolling, so the fixed bars stay anchored to the viewport.
+          height: '100vh',
+          '@supports (height: 100dvh)': { height: '100dvh' },
+          overflowY: 'auto',
+          paddingBottom: isHome
             ? `calc(${NAV_HEIGHT}px + ${SAFE_AREA_BOTTOM})`
             : `calc(${NAV_HEIGHT + MINI_PLAYER_HEIGHT}px + ${SAFE_AREA_BOTTOM})`,
         }}
