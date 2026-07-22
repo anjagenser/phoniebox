@@ -111,6 +111,13 @@
       "delete": {
         "title": "Karte löschen '{{cardId}}'",
         "description": "Bist du sicher, dass du diese Karte löschen möchtest?"
+      },
+      "assign-warning": {
+        "title": "Bitte bestätigen",
+        "reassign": "Dieser Karte ist bereits eine andere Aktion zugewiesen. Beim Speichern wird die bestehende Zuweisung überschrieben.",
+        "duplicate": "Diese Auswahl ist bereits folgender/folgenden Karte(n) zugewiesen: {{cardIds}}.",
+        "question": "Möchtest du fortfahren?",
+        "confirm": "Fortfahren"
       }
     },
     "edit": {

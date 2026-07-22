@@ -111,6 +111,13 @@
       "delete": {
         "title": "Delete Card '{{cardId}}'",
         "description": "Are you sure you want to delete this card?"
+      },
+      "assign-warning": {
+        "title": "Please confirm",
+        "reassign": "This card is already assigned to a different action. Saving will overwrite the existing assignment.",
+        "duplicate": "This selection is already assigned to card(s): {{cardIds}}.",
+        "question": "Do you want to continue?",
+        "confirm": "Continue"
       }
     },
     "edit": {

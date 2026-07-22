@@ -7,11 +7,13 @@ import {
   CardActions,
 } from '@mui/material';
 
+import CardsAssignWarningDialog from '../dialogs/assign-warning';
 import CardsDeleteDialog from '../dialogs/delete';
 import request from '../../../utils/request';
 import {
   getActionAndCommand,
-  getArgsValues
+  getArgsValues,
+  getAssignmentWarnings,
 } from '../utils';
 
 const ActionsControls = ({
@@ -22,8 +24,10 @@ const ActionsControls = ({
   const navigate = useNavigate();
   const { '*': path } = useParams();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [warnings, setWarnings] = useState([]);
+  const [warningDialogOpen, setWarningDialogOpen] = useState(false);
 
-  const handleRegisterCard = async () => {
+  const registerCard = async () => {
     const args = getArgsValues(actionData);
     const { command: cmd_alias } = getActionAndCommand(actionData);
 
@@ -41,6 +45,35 @@ const ActionsControls = ({
     }
 
     navigate('../');
+  };
+
+  // Before saving, check whether this assignment overwrites the card's current
+  // action or reuses a value already assigned elsewhere. If so, ask the user to
+  // confirm; otherwise save straight away.
+  const handleRegisterCard = async () => {
+    const args = getArgsValues(actionData);
+    const { command } = getActionAndCommand(actionData);
+
+    const { result } = await request('cardsList');
+    const foundWarnings = getAssignmentWarnings({
+      cardId,
+      cardsList: result || {},
+      command,
+      args,
+    });
+
+    if (foundWarnings.length) {
+      setWarnings(foundWarnings);
+      setWarningDialogOpen(true);
+      return;
+    }
+
+    await registerCard();
+  };
+
+  const handleConfirmWarning = async () => {
+    setWarningDialogOpen(false);
+    await registerCard();
   };
 
   const handleDeleteCard = async () => {
@@ -84,6 +117,12 @@ const ActionsControls = ({
         onClose={() => setDeleteDialogOpen(false)}
         doDelete={handleDeleteCard}
         cardId={cardId}
+      />
+      <CardsAssignWarningDialog
+        open={warningDialogOpen}
+        warnings={warnings}
+        onConfirm={handleConfirmWarning}
+        onCancel={() => setWarningDialogOpen(false)}
       />
     </>
   );

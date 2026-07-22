@@ -67,9 +67,55 @@ const getArgsValues = (actionData) => {
   );
 };
 
+const normalizeArgs = (args) =>
+  (args || []).map((arg) => (arg === null || arg === undefined ? '' : String(arg)));
+
+const argsAreEqual = (a, b) => {
+  const na = normalizeArgs(a);
+  const nb = normalizeArgs(b);
+  return na.length === nb.length && na.every((value, index) => value === nb[index]);
+};
+
+// Commands whose first argument is a shareable "value" (a Spotify/stream URI or
+// a music folder) that usually should not be assigned to more than one card.
+const VALUE_BEARING_COMMANDS = ['play_uri', 'play_folder', 'play_album', 'play_single'];
+
+// Collect warnings that should be confirmed before a card is (re)assigned:
+//  - 'reassign': this very card already carries a different action (Feature 4)
+//  - 'duplicate': the exact same value is already assigned to other card(s) (Feature 5)
+const getAssignmentWarnings = ({ cardId, cardsList = {}, command, args }) => {
+  const warnings = [];
+  const id = cardId ? cardId.toString() : cardId;
+  const existing = cardsList[id];
+
+  if (existing && existing.from_alias) {
+    const changed =
+      existing.from_alias !== command ||
+      !argsAreEqual(existing.action && existing.action.args, args);
+    if (changed) {
+      warnings.push({ type: 'reassign', current: existing });
+    }
+  }
+
+  if (command && VALUE_BEARING_COMMANDS.includes(command)) {
+    const duplicates = Object.keys(cardsList).filter((otherId) =>
+      otherId !== id &&
+      cardsList[otherId].from_alias === command &&
+      argsAreEqual(cardsList[otherId].action && cardsList[otherId].action.args, args)
+    );
+    if (duplicates.length) {
+      warnings.push({ type: 'duplicate', cardIds: duplicates });
+    }
+  }
+
+  return warnings;
+};
+
 export {
+  argsAreEqual,
   buildActionData,
   findActionByCommand,
   getActionAndCommand,
   getArgsValues,
+  getAssignmentWarnings,
 };
