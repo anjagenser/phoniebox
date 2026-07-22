@@ -10,6 +10,7 @@ import {
 import CardsAssignWarningDialog from '../dialogs/assign-warning';
 import CardsDeleteDialog from '../dialogs/delete';
 import request from '../../../utils/request';
+import { emit } from '../../../context/toast/events';
 import {
   getActionAndCommand,
   getArgsValues,
@@ -44,6 +45,7 @@ const ActionsControls = ({
       return console.error(error);
     }
 
+    emit('success', t('cards.toasts.saved'));
     navigate('../');
   };
 
@@ -84,6 +86,7 @@ const ActionsControls = ({
       return console.error(error);
     }
 
+    emit('success', t('cards.toasts.deleted'));
     navigate('/cards');
   };
 

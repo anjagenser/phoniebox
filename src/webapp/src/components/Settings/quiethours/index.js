@@ -18,6 +18,7 @@ import {
 } from '@mui/material';
 
 import request from '../../../utils/request';
+import { emit } from '../../../context/toast/events';
 
 const DEFAULT_CONFIG = {
   enabled: false,
@@ -69,6 +70,7 @@ const SettingsQuietHours = () => {
     setIsSaving(false);
     if (!error) {
       setSaved(config);
+      emit('success', t('settings.quiethours.saved'));
     }
   };
 

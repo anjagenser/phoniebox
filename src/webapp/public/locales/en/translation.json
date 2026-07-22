@@ -137,6 +137,10 @@
     },
     "register": {
       "register-card": "Register a card"
+    },
+    "toasts": {
+      "saved": "Card saved",
+      "deleted": "Card deleted"
     }
   },
   "header": {
@@ -295,7 +299,8 @@
       "start": "Start",
       "end": "End",
       "fade-label": "Fade-out duration before start: {{minutes}} min",
-      "load-error": "Quiet-hours settings could not be loaded."
+      "load-error": "Quiet-hours settings could not be loaded.",
+      "saved": "Quiet hours saved"
     },
     "secondswipe": {
       "title": "Second Swipe",
@@ -363,7 +368,13 @@
       "remove": "Remove",
       "connected": "Connected",
       "no-devices": "No Bluetooth devices found. Put your headset in pairing mode and scan.",
-      "not-available": "Bluetooth is not available on this device."
+      "not-available": "Bluetooth is not available on this device.",
+      "toasts": {
+        "paired": "Device paired",
+        "connected": "Device connected",
+        "disconnected": "Device disconnected",
+        "removed": "Device removed"
+      }
     },
     "systemcontrols": {
       "title": "System Controls"

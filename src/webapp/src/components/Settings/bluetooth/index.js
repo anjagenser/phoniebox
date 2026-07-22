@@ -26,6 +26,7 @@ import HeadphonesIcon from '@mui/icons-material/Headphones';
 import SearchIcon from '@mui/icons-material/Search';
 
 import request from '../../../utils/request';
+import { emit } from '../../../context/toast/events';
 
 const SettingsBluetooth = () => {
   const { t } = useTranslation();
@@ -61,10 +62,13 @@ const SettingsBluetooth = () => {
     }
   };
 
-  const runAction = async (mac, command) => {
+  const runAction = async (mac, command, toastKey) => {
     setBusyMac(mac);
-    await request(command, { mac });
+    const { error } = await request(command, { mac });
     setBusyMac(null);
+    if (!error && toastKey) {
+      emit('success', t(`settings.bluetooth.toasts.${toastKey}`));
+    }
     await loadDevices();
   };
 
@@ -117,7 +121,7 @@ const SettingsBluetooth = () => {
                   <IconButton
                     edge="end"
                     aria-label={t('settings.bluetooth.remove')}
-                    onClick={() => runAction(device.mac, 'bluetoothRemove')}
+                    onClick={() => runAction(device.mac, 'bluetoothRemove', 'removed')}
                     disabled={busyMac === device.mac}
                   >
                     <DeleteIcon />
@@ -149,7 +153,7 @@ const SettingsBluetooth = () => {
                     size="small"
                     variant="outlined"
                     startIcon={<BluetoothIcon />}
-                    onClick={() => runAction(device.mac, 'bluetoothPair')}
+                    onClick={() => runAction(device.mac, 'bluetoothPair', 'paired')}
                     disabled={busyMac === device.mac}
                   >
                     {t('settings.bluetooth.pair')}
@@ -159,7 +163,7 @@ const SettingsBluetooth = () => {
                   <Button
                     size="small"
                     variant="outlined"
-                    onClick={() => runAction(device.mac, 'bluetoothConnect')}
+                    onClick={() => runAction(device.mac, 'bluetoothConnect', 'connected')}
                     disabled={busyMac === device.mac}
                   >
                     {t('settings.bluetooth.connect')}
@@ -169,7 +173,7 @@ const SettingsBluetooth = () => {
                   <Button
                     size="small"
                     variant="outlined"
-                    onClick={() => runAction(device.mac, 'bluetoothDisconnect')}
+                    onClick={() => runAction(device.mac, 'bluetoothDisconnect', 'disconnected')}
                     disabled={busyMac === device.mac}
                   >
                     {t('settings.bluetooth.disconnect')}

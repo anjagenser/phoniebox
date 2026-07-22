@@ -137,6 +137,10 @@
     },
     "register": {
       "register-card": "Registriere eine Karte"
+    },
+    "toasts": {
+      "saved": "Karte gespeichert",
+      "deleted": "Karte gelöscht"
     }
   },
   "header": {
@@ -295,7 +299,8 @@
       "start": "Start",
       "end": "Ende",
       "fade-label": "Dauer der Ausblendung vor dem Start: {{minutes}} Min.",
-      "load-error": "Die Ruhezeiten-Einstellungen konnten nicht geladen werden."
+      "load-error": "Die Ruhezeiten-Einstellungen konnten nicht geladen werden.",
+      "saved": "Ruhezeiten gespeichert"
     },
     "secondswipe": {
       "title": "Erneute Aktivierung (Second Swipe)",
@@ -361,7 +366,13 @@
       "remove": "Entfernen",
       "connected": "Verbunden",
       "no-devices": "Keine Bluetooth-Geräte gefunden. Versetze dein Headset in den Kopplungsmodus und starte die Suche.",
-      "not-available": "Bluetooth ist auf diesem Gerät nicht verfügbar."
+      "not-available": "Bluetooth ist auf diesem Gerät nicht verfügbar.",
+      "toasts": {
+        "paired": "Gerät gekoppelt",
+        "connected": "Gerät verbunden",
+        "disconnected": "Gerät getrennt",
+        "removed": "Gerät entfernt"
+      }
     },
     "systemcontrols": {
       "title": "Systemsteuerung"
