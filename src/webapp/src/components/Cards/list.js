@@ -12,10 +12,17 @@ import {
   Typography
 } from '@mui/material';
 
+import AlbumIcon from '@mui/icons-material/Album';
 import BookmarkIcon from '@mui/icons-material/Bookmark';
+import FolderIcon from '@mui/icons-material/Folder';
 import MusicNoteIcon from '@mui/icons-material/MusicNote';
+import SettingsIcon from '@mui/icons-material/Settings';
+import SyncIcon from '@mui/icons-material/Sync';
+import TimerIcon from '@mui/icons-material/Timer';
+import VolumeUpIcon from '@mui/icons-material/VolumeUp';
 
 import request from '../../utils/request';
+import { findActionByCommand } from './utils';
 
 const EditCardLink = forwardRef((props, ref) => {
   const { data } = props;
@@ -27,31 +34,74 @@ const EditCardLink = forwardRef((props, ref) => {
   return <Link ref={ref} to={location} {...props} />
 });
 
-const CardListItem = ({ cardId, card }) => {
-  const isUri = card.from_alias === 'play_uri';
-  const uri = isUri && card.action && card.action.args
-    ? card.action.args[0]
-    : null;
+// Icon shown when no cover art is available, chosen by the card's action.
+const iconForCommand = (command) => {
+  switch (command) {
+    case 'play_uri':
+    case 'play_single':
+      return <MusicNoteIcon />;
+    case 'play_album':
+      return <AlbumIcon />;
+    case 'play_folder':
+      return <FolderIcon />;
+    default:
+      break;
+  }
+  switch (findActionByCommand(command)) {
+    case 'host':
+      return <SettingsIcon />;
+    case 'timers':
+      return <TimerIcon />;
+    case 'audio':
+      return <VolumeUpIcon />;
+    case 'synchronisation':
+      return <SyncIcon />;
+    default:
+      return <BookmarkIcon />;
+  }
+};
 
+const cachePath = (result) =>
+  result && result !== 'CACHE_PENDING' ? `/cover-cache/${result}` : null;
+
+const CardListItem = ({ cardId, card }) => {
+  const command = card.from_alias;
+  const args = (card.action && card.action.args) || [];
+
+  const [coverImage, setCoverImage] = useState(null);
   const [uriName, setUriName] = useState(null);
 
-  // For Spotify / stream cards, resolve the playlist/album/track name so the
-  // list shows something readable instead of only the raw URI.
+  // Resolve a cover image (and, for URIs, a readable name) so the cards tab is
+  // scannable. Each action type has its own way to look up cover art.
   useEffect(() => {
     let active = true;
 
-    if (uri) {
-      (async () => {
-        const { result } = await request('getUriName', { uri });
-        if (active && result) setUriName(result);
-      })();
-    }
+    const load = async () => {
+      if (command === 'play_uri' && args[0]) {
+        const { result } = await request('getUriDetails', { uri: args[0] });
+        if (active && result) {
+          setUriName(result.name || null);
+          setCoverImage(result.image || null);
+        }
+      } else if (command === 'play_album' && args[0] && args[1]) {
+        const { result } = await request('getAlbumCoverArt', {
+          albumartist: args[0],
+          album: args[1],
+        });
+        if (active) setCoverImage(cachePath(result));
+      } else if (command === 'play_single' && args[0]) {
+        const { result } = await request('getSingleCoverArt', { song_url: args[0] });
+        if (active) setCoverImage(cachePath(result));
+      }
+    };
 
+    load();
     return () => { active = false; };
-  }, [uri]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [command, args[0], args[1]]);
 
-  const fallbackDescription = card.from_alias
-    ? reject(isNil, [card.from_alias, card.action.args]).join(', ')
+  const fallbackDescription = command
+    ? reject(isNil, [command, card.action.args]).join(', ')
     : card.func;
 
   const secondary = uriName || fallbackDescription;
@@ -63,8 +113,8 @@ const CardListItem = ({ cardId, card }) => {
       data={{ id: cardId, ...card }}
     >
       <ListItemAvatar>
-        <Avatar>
-          {isUri ? <MusicNoteIcon /> : <BookmarkIcon />}
+        <Avatar variant="rounded" src={coverImage || undefined}>
+          {iconForCommand(command)}
         </Avatar>
       </ListItemAvatar>
       <ListItemText

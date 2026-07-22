@@ -36,6 +36,12 @@ const commands = {
     method: 'get_uri_name',
     argKeys: ['uri'],
   },
+  getUriDetails: {
+    _package: 'player',
+    plugin: 'ctrl',
+    method: 'get_uri_details',
+    argKeys: ['uri'],
+  },
   folderList: {
     _package: 'player',
     plugin: 'ctrl',

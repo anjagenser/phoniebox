@@ -110,9 +110,9 @@ from .coverart_cache_manager import CoverartCacheManager
 logger = logging.getLogger('jb.PlayerMPD')
 cfg = jukebox.cfghandler.get_handler('jukebox')
 
-# Cache of resolved URI -> human-readable name, so the web app can render a
-# readable card list without hitting Mopidy on every request.
-_uri_name_cache = {}
+# Cache of resolved URI -> {'name': str|None, 'image': str|None}, so the web app
+# can render a readable card list without hitting Mopidy on every request.
+_uri_details_cache = {}
 
 
 class MpdLock:
@@ -714,23 +714,30 @@ class PlayerMPD:
             raise RuntimeError(data['error'])
         return data.get('result')
 
-    @plugs.tag
-    def get_uri_name(self, uri: str):
-        """Resolve a playback URI to a human-readable name.
-
-        For Spotify URIs (and other Mopidy-backed URIs) this returns the name of
-        the playlist, album, artist or track, so the web app can show a readable
-        label on the cards tab instead of the raw URI. Returns ``None`` when the
-        name cannot be resolved (real MPD backend, Mopidy unreachable, or an
-        unknown/invalid URI).
-        """
-        if not uri:
+    def _resolve_uri_image(self, uri: str):
+        """Return the largest available cover image URL for a URI, or ``None``."""
+        try:
+            result = self._mopidy_rpc('core.library.get_images', {'uris': [uri]})
+            images = (result or {}).get(uri) or []
+            if not images:
+                return None
+            # Prefer the largest image (fall back to the first if sizes missing)
+            best = max(images, key=lambda i: (i.get('width') or 0) * (i.get('height') or 0))
+            return best.get('uri')
+        except Exception as e:
+            logger.debug(f"_resolve_uri_image('{uri}') failed: {e.__class__.__name__}: {e}")
             return None
+
+    def _resolve_uri_details(self, uri: str):
+        """Resolve a URI to ``{'name': ..., 'image': ...}`` via Mopidy (cached)."""
+        empty = {'name': None, 'image': None}
+        if not uri:
+            return dict(empty)
         uri = components.player.uri.normalize_uri(uri)
         if getattr(self, 'player_backend', 'mpd') != 'mopidy':
-            return None
-        if uri in _uri_name_cache:
-            return _uri_name_cache[uri]
+            return dict(empty)
+        if uri in _uri_details_cache:
+            return dict(_uri_details_cache[uri])
 
         name = None
         try:
@@ -751,11 +758,33 @@ class PlayerMPD:
                     else:
                         name = track.get('name')
         except Exception as e:
-            logger.debug(f"get_uri_name('{uri}') failed: {e.__class__.__name__}: {e}")
-            return None
+            logger.debug(f"_resolve_uri_details('{uri}') failed: {e.__class__.__name__}: {e}")
+            return dict(empty)
 
-        _uri_name_cache[uri] = name
-        return name
+        details = {'name': name, 'image': self._resolve_uri_image(uri)}
+        _uri_details_cache[uri] = details
+        return dict(details)
+
+    @plugs.tag
+    def get_uri_name(self, uri: str):
+        """Resolve a playback URI to a human-readable name.
+
+        For Spotify URIs (and other Mopidy-backed URIs) this returns the name of
+        the playlist, album, artist or track, so the web app can show a readable
+        label on the cards tab instead of the raw URI. Returns ``None`` when the
+        name cannot be resolved (real MPD backend, Mopidy unreachable, or an
+        unknown/invalid URI).
+        """
+        return self._resolve_uri_details(uri).get('name')
+
+    @plugs.tag
+    def get_uri_details(self, uri: str):
+        """Resolve a playback URI to ``{'name': ..., 'image': ...}``.
+
+        ``image`` is a cover-art URL (e.g. a Spotify image) or ``None``. Used by
+        the web app to show a readable label and cover on the cards tab.
+        """
+        return self._resolve_uri_details(uri)
 
     @plugs.tag
     def resume(self):
