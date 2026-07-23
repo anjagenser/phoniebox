@@ -53,6 +53,7 @@ const Folders = ({
 
   const fetchFolderList = useCallback(async () => {
     setIsLoading(true);
+    setError(null);
     const { result, error } = await request('folderList', { folder: decodedDir });
     setIsLoading(false);
 
@@ -150,7 +151,14 @@ const Folders = ({
       </Box>
 
       {isLoading && <CircularProgress />}
-      {!isLoading && error && <Typography>{t('library.loading-error')}</Typography>}
+      {!isLoading && error && (
+        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1, p: 2 }}>
+          <Typography>{t('library.loading-error')}</Typography>
+          <Button variant="outlined" onClick={fetchFolderList}>
+            {t('library.actions.retry')}
+          </Button>
+        </Box>
+      )}
       {!isLoading && !error && musicFilter && !filteredFolders.length && (
         <Typography>{t('library.folders.no-music')}</Typography>
       )}

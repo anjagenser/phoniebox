@@ -229,7 +229,8 @@
       "renamed": "Erfolgreich umbenannt",
       "moved": "Erfolgreich verschoben",
       "deleted": "Erfolgreich gelöscht",
-      "folder-created": "Ordner erstellt"
+      "folder-created": "Ordner erstellt",
+      "retry": "Erneut versuchen"
     }
   },
   "navigation": {

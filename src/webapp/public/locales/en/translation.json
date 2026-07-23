@@ -229,7 +229,8 @@
       "renamed": "Renamed successfully",
       "moved": "Moved successfully",
       "deleted": "Deleted successfully",
-      "folder-created": "Folder created"
+      "folder-created": "Folder created",
+      "retry": "Retry"
     }
   },
   "navigation": {
