@@ -1,5 +1,12 @@
+html,
 body {
   margin: 0;
+  /* Never let the page scroll sideways. MUI Grid negative margins, long
+   * unbreakable strings (URIs, hostnames) or a stray full-width child can push
+   * the layout a few px wider than the viewport and produce a horizontal
+   * scrollbar; clip it at the document level as a safety net. */
+  max-width: 100%;
+  overflow-x: hidden;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
     'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
     sans-serif;

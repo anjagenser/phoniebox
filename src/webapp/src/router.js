@@ -31,6 +31,9 @@ const AppLayout = () => {
           height: '100vh',
           '@supports (height: 100dvh)': { height: '100dvh' },
           overflowY: 'auto',
+          // Contain content width and never scroll sideways within the pane.
+          overflowX: 'hidden',
+          maxWidth: '100%',
           paddingBottom: isHome
             ? `calc(${NAV_HEIGHT}px + ${SAFE_AREA_BOTTOM})`
             : `calc(${NAV_HEIGHT + MINI_PLAYER_HEIGHT}px + ${SAFE_AREA_BOTTOM})`,
