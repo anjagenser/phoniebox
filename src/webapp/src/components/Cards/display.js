@@ -27,6 +27,12 @@ export const resolveCardDisplay = async (card) => {
     } else if (command === 'play_single' && args[0]) {
       const { result } = await request('getSingleCoverArt', { song_url: args[0] });
       return { name: null, image: cachePath(result) };
+    } else if ((command === 'play_folder' || command === 'play_card') && args[0]) {
+      const folder = args[0];
+      const { result } = await request('getFolderCoverArt', { folder });
+      // Use the folder's own name as the readable label.
+      const name = folder.split('/').filter(Boolean).pop() || folder;
+      return { name, image: cachePath(result) };
     }
   } catch (e) {
     // Resolution is best-effort; fall through to an empty result.

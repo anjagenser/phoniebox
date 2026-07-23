@@ -942,6 +942,20 @@ class PlayerMPD:
         return self.get_single_coverart(song_list[0]['file'])
 
     @plugs.tag
+    def get_folder_coverart(self, folder: str):
+        """Return cover art for a local folder (album) card.
+
+        Uses the cover of the folder's first music file — embedded art (MP3) or a
+        ``cover.*`` image placed in the folder. Returns a cache filename,
+        ``CACHE_PENDING`` while it is generated, or '' when the folder has no
+        playable file. Lets the web app show a folder card's cover like Spotify.
+        """
+        for entry in self.get_folder_content(folder):
+            if entry.get('type') == 'file':
+                return self.get_single_coverart(entry.get('relpath') or entry.get('path'))
+        return ''
+
+    @plugs.tag
     def flush_coverart_cache(self):
         """
         Deletes the Cover Art Cache
