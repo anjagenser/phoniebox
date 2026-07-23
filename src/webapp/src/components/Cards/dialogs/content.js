@@ -22,9 +22,13 @@ import EditIcon from '@mui/icons-material/Edit';
 
 import request from '../../../utils/request';
 
-// Commands whose first argument is a Spotify/stream URI whose contents (the
-// tracks that will play) can be resolved via Mopidy.
+// Commands whose first argument is a Spotify/stream URI (contents resolved via
+// Mopidy) vs. a local music folder (contents listed from the file system).
 const URI_COMMANDS = ['play_uri'];
+const FOLDER_COMMANDS = ['play_folder', 'play_card'];
+
+const AUDIO_EXT = /\.(mp3|m4a|flac|ogg|oga|opus|wav|aac|wma)$/i;
+const stripExt = (name) => (typeof name === 'string' ? name.replace(AUDIO_EXT, '') : name);
 
 const CardContentDialog = ({ open, onClose, cardId, card = {}, detail = {} }) => {
   const { t } = useTranslation();
@@ -34,24 +38,38 @@ const CardContentDialog = ({ open, onClose, cardId, card = {}, detail = {} }) =>
   const [loading, setLoading] = useState(false);
 
   const command = card.from_alias;
-  const uri = card.action && card.action.args && card.action.args[0];
-  const isUri = URI_COMMANDS.includes(command) && Boolean(uri);
+  const arg0 = card.action && card.action.args && card.action.args[0];
+  const kind = URI_COMMANDS.includes(command) && arg0 ? 'uri'
+    : FOLDER_COMMANDS.includes(command) && arg0 ? 'folder'
+      : null;
 
   useEffect(() => {
-    if (!open || !isUri) {
+    if (!open || !kind) {
       setTracks(null);
       return undefined;
     }
     let active = true;
     setLoading(true);
     (async () => {
-      const { result } = await request('getUriTracks', { uri });
+      let list = [];
+      if (kind === 'uri') {
+        const { result } = await request('getUriTracks', { uri: arg0 });
+        list = Array.isArray(result) ? result : [];
+      } else if (kind === 'folder') {
+        // List the music files in the folder (depth 1); skip sub-directories.
+        const { result } = await request('folderList', { folder: arg0 });
+        list = Array.isArray(result)
+          ? result
+              .filter((entry) => ['file', 'stream', 'podcast'].includes(entry.type))
+              .map((entry) => ({ name: stripExt(entry.name), artist: null }))
+          : [];
+      }
       if (!active) return;
-      setTracks(Array.isArray(result) ? result : []);
+      setTracks(list);
       setLoading(false);
     })();
     return () => { active = false; };
-  }, [open, isUri, uri]);
+  }, [open, kind, arg0]);
 
   const name = detail.name || command || cardId;
 
@@ -70,25 +88,25 @@ const CardContentDialog = ({ open, onClose, cardId, card = {}, detail = {} }) =>
       </DialogTitle>
 
       <DialogContent dividers>
-        {!isUri && (
+        {!kind && (
           <Typography variant="body2" color="text.secondary">
             {t('cards.content.no-tracklist')}
           </Typography>
         )}
 
-        {isUri && loading && (
+        {kind && loading && (
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
             <CircularProgress size={24} />
           </Box>
         )}
 
-        {isUri && !loading && tracks && tracks.length === 0 && (
+        {kind && !loading && tracks && tracks.length === 0 && (
           <Typography variant="body2" color="text.secondary">
             {t('cards.content.empty')}
           </Typography>
         )}
 
-        {isUri && !loading && tracks && tracks.length > 0 && (
+        {kind && !loading && tracks && tracks.length > 0 && (
           <List dense disablePadding>
             {tracks.map((track, index) => (
               <ListItem key={index} disableGutters>
