@@ -9,6 +9,7 @@ import jukebox.plugs as plugin
 import jukebox.utils
 from jukebox.daemon import get_jukebox_daemon
 import jukebox.cfghandler
+from components.statistics import stats
 
 logger = logging.getLogger('jb.misc')
 cfg = jukebox.cfghandler.get_handler('jukebox')
@@ -125,6 +126,24 @@ def set_app_settings(settings={}):
     for key, value in settings.items():
         cfg.setn('webapp', key, value=value)
     cfg.save(only_if_changed=True)
+
+
+@plugin.register
+def get_statistics(limit: int = None):
+    """Return usage statistics: swipe counts per card and play counts per song.
+
+    :param limit: Optionally limit each list to the top ``limit`` entries
+    :return: dict with ``cards`` and ``songs`` lists (most frequent first) plus
+        ``total_swipes`` and ``total_plays`` totals
+    """
+    return stats.get_statistics(limit=limit)
+
+
+@plugin.register
+def reset_statistics():
+    """Clear all recorded usage statistics"""
+    stats.reset()
+    logger.info("Usage statistics have been reset")
 
 
 @plugin.register

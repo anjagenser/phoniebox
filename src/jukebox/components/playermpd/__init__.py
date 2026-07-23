@@ -95,6 +95,7 @@ import functools
 from pathlib import Path
 import components.player
 import components.player.uri
+from components.statistics import stats
 import jukebox.cfghandler
 import jukebox.utils as utils
 import jukebox.plugs as plugs
@@ -395,6 +396,8 @@ class PlayerMPD:
             self.current_folder_status["ELAPSED"] = self.mpd_status.get('elapsed', '0.0')
             self.current_folder_status["PLAYSTATUS"] = self.mpd_status['state']
 
+        self._count_song_statistic()
+
         # Delete the volume key to avoid confusion
         # Volume is published via the 'volume' component!
         try:
@@ -402,6 +405,28 @@ class PlayerMPD:
         except KeyError:
             pass
         publishing.get_publisher().send('playerstatus', self.mpd_status)
+
+    def _count_song_statistic(self):
+        """Count a song play once, when the currently playing track changes.
+
+        Called on every status poll; it records at most one play per song change
+        while the player is actually playing.
+        """
+        if self.mpd_status.get('state') != 'play':
+            return
+        file = self.mpd_status.get('file')
+        if not file or file == getattr(self, '_stats_last_counted_file', None):
+            return
+        self._stats_last_counted_file = file
+        try:
+            stats.count_song_play(
+                file=file,
+                title=self.mpd_status.get('title'),
+                artist=self.mpd_status.get('artist'),
+                album=self.mpd_status.get('album'),
+            )
+        except Exception as e:
+            logger.error(f"Could not record song play statistic: {e}")
 
     # MPD can play absolute paths but can find songs in its database only by relative path
     # This function aims to prepare the song_url accordingly

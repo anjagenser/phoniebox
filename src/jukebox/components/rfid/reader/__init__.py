@@ -10,6 +10,7 @@ import jukebox.cfghandler
 import jukebox.utils as utils
 import jukebox.publishing as publishing
 from components.rfid.cardutils import (decode_card_command)
+from components.statistics import stats
 
 from jukebox.callingback import CallbackHandler
 
@@ -54,6 +55,18 @@ class RfidCardDetectCallbacks(CallbackHandler):
 #: Callback handler instance for rfid_card_detect_callbacks events.
 #: See #RfidCardDetectCallbacks
 rfid_card_detect_callbacks: RfidCardDetectCallbacks = RfidCardDetectCallbacks('rfid_card_detect_callbacks', log)
+
+
+def _count_card_swipe(card_id: str, state: RfidCardDetectState):
+    """Record every accepted card swipe for the usage statistics."""
+    if state == RfidCardDetectState.received:
+        try:
+            stats.count_card_swipe(card_id)
+        except Exception as e:
+            log.error(f"Could not record card swipe statistic: {e}")
+
+
+rfid_card_detect_callbacks.register(_count_card_swipe)
 
 
 class CardRemovalTimerClass(threading.Thread):
