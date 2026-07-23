@@ -8,6 +8,22 @@
     "loading": "Loading"
   },
   "cards": {
+    "source": {
+      "spotify": "Spotify",
+      "stream": "Stream",
+      "link": "Link",
+      "folder": "Folder",
+      "album": "Album",
+      "track": "Track"
+    },
+    "content": {
+      "card-id": "Card {{cardId}}",
+      "no-tracklist": "No track list available for this card.",
+      "empty": "No tracks found.",
+      "unknown-track": "Unknown track",
+      "edit": "Edit",
+      "close": "Close"
+    },
     "controls": {
       "command-selector": {
         "title": "Commands",

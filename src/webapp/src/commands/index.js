@@ -42,6 +42,12 @@ const commands = {
     method: 'get_uri_details',
     argKeys: ['uri'],
   },
+  getUriTracks: {
+    _package: 'player',
+    plugin: 'ctrl',
+    method: 'get_uri_tracks',
+    argKeys: ['uri'],
+  },
   folderList: {
     _package: 'player',
     plugin: 'ctrl',
