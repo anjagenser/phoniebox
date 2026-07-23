@@ -6,6 +6,7 @@ import {
   Box,
   Button,
   CardActions,
+  CircularProgress,
 } from '@mui/material';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 
@@ -35,6 +36,7 @@ const ActionsControls = ({
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [warnings, setWarnings] = useState([]);
   const [warningDialogOpen, setWarningDialogOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const registerCard = async () => {
     const args = getArgsValues(actionData);
@@ -61,6 +63,7 @@ const ActionsControls = ({
   // action or reuses a value already assigned elsewhere. If so, ask the user to
   // confirm; otherwise save straight away.
   const handleRegisterCard = async () => {
+    setSaving(true);
     const args = getArgsValues(actionData);
     const { command } = getActionAndCommand(actionData);
 
@@ -75,15 +78,19 @@ const ActionsControls = ({
     if (foundWarnings.length) {
       setWarnings(foundWarnings);
       setWarningDialogOpen(true);
+      setSaving(false);
       return;
     }
 
     await registerCard();
+    setSaving(false);
   };
 
   const handleConfirmWarning = async () => {
     setWarningDialogOpen(false);
+    setSaving(true);
     await registerCard();
+    setSaving(false);
   };
 
   const { command: currentCommand } = getActionAndCommand(actionData);
@@ -146,8 +153,10 @@ const ActionsControls = ({
             variant="contained"
             onClick={() => handleRegisterCard(cardId)}
             size="small"
+            disabled={saving}
+            startIcon={saving ? <CircularProgress size={16} /> : null}
           >
-            {t('general.buttons.save')}
+            {saving ? t('cards.controls.saving') : t('general.buttons.save')}
           </Button>
         </Box>
       </CardActions>

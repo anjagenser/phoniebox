@@ -9,25 +9,49 @@ import { emit } from '../context/toast/events';
 // stall until they hit the socket timeout. Cap how many run concurrently and
 // queue the rest, so a burst just runs a little slower instead of timing out.
 const MAX_CONCURRENT = 5;
-let active = 0;
-const pending = [];
+// Cover-art lookups are best-effort background work fired in bursts (one per card
+// / per folder row). Cap how many run at once so at least (MAX-LOW) slots stay
+// free for interactive/critical calls (app settings, saving a card, listings),
+// which must never be starved behind a cover flood.
+const LOW_MAX_CONCURRENT = 3;
+const LOW_PRIORITY = new Set([
+  'getFolderCoverArt',
+  'getFolderCovers',
+  'getSingleCoverArt',
+  'getAlbumCoverArt',
+  'getUriDetails',
+  'getUriName',
+]);
 
-const pump = () => {
-  if (active >= MAX_CONCURRENT) return;
-  const next = pending.shift();
-  if (!next) return;
+let active = 0;
+let activeLow = 0;
+const highQueue = [];
+const lowQueue = [];
+
+const run = (item, isLow) => {
   active += 1;
+  if (isLow) activeLow += 1;
   // The socket timeout only starts once the call actually runs (here), not while
   // it waits in the queue.
-  next.fn().then(next.resolve, next.reject).finally(() => {
+  item.fn().then(item.resolve, item.reject).finally(() => {
     active -= 1;
+    if (isLow) activeLow -= 1;
     pump();
   });
 };
 
-const schedule = (fn) =>
+const pump = () => {
+  while (active < MAX_CONCURRENT && highQueue.length) {
+    run(highQueue.shift(), false);
+  }
+  while (active < MAX_CONCURRENT && activeLow < LOW_MAX_CONCURRENT && lowQueue.length) {
+    run(lowQueue.shift(), true);
+  }
+};
+
+const schedule = (fn, isLow) =>
   new Promise((resolve, reject) => {
-    pending.push({ fn, resolve, reject });
+    (isLow ? lowQueue : highQueue).push({ fn, resolve, reject });
     pump();
   });
 
@@ -39,8 +63,11 @@ const request = async (command, kwargs = {}) => {
 
     const { _package, plugin, method = null } = commands[command];
 
-    // Send request (throttled through the concurrency limiter)
-    const result = await schedule(() => socketRequest(_package, plugin, method, kwargs));
+    // Send request (throttled through the concurrency limiter, cover art last)
+    const result = await schedule(
+      () => socketRequest(_package, plugin, method, kwargs),
+      LOW_PRIORITY.has(command),
+    );
     return { result };
   }
   catch (error) {

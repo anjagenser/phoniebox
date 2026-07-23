@@ -123,7 +123,8 @@
             "label-disable": "Deaktivieren"
           }
         }
-      }
+      },
+      "saving": "Wird gespeichert..."
     },
     "dialogs": {
       "delete": {

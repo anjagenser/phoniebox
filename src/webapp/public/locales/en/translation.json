@@ -123,7 +123,8 @@
             "label-disable": "Disable"
           }
         }
-      }
+      },
+      "saving": "Saving..."
     },
     "dialogs": {
       "delete": {
