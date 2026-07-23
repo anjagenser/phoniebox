@@ -44,10 +44,6 @@ class CoverartCacheManager:
             candidate = self.cache_folder_path / f"{cache_key}.{ext}"
             if candidate.exists():
                 return candidate.name
-        for path in self.cache_folder_path.glob(f"{cache_key}.*"):
-            if path.suffix == f".{NO_COVER_ART_EXTENSION}":
-                return NO_CACHE
-            return path.name
         return None
 
     def get_cache_filename(self, mp3_file_path: str) -> str:
@@ -140,7 +136,9 @@ class CoverartCacheManager:
         for tag in audio_file.tags.values():
             if isinstance(tag, APIC):
                 if tag.mime and tag.data:
-                    file_extension = 'jpg' if tag.mime == 'image/jpeg' else tag.mime.split('/')[-1]
+                    # Only ever produce jpg/png so the O(1) cache lookup (which
+                    # probes those extensions) always finds the file again.
+                    file_extension = 'png' if tag.mime == 'image/png' else 'jpg'
                     return (file_extension, tag.data)
 
         return (NO_COVER_ART_EXTENSION, b'')
