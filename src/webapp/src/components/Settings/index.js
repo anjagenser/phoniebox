@@ -8,6 +8,7 @@ import SettingsAutoHotspot from './autohotspot';
 import SettingsBluetooth from './bluetooth/index';
 import SettingsCardBackup from './cardbackup/index';
 import SettingsCardMode from './cardmode/index';
+import SettingsCoverArt from './coverart';
 import SettingsGeneral from './general';
 import SettingsQuietHours from './quiethours/index';
 import SettingsSecondSwipe from './secondswipe';
@@ -25,7 +26,7 @@ const SECTIONS = [
   { key: 'cards', items: [SettingsCardBackup] },
   { key: 'schedule', items: [SettingsTimers, SettingsQuietHours] },
   { key: 'network', items: [SettingsBluetooth, SettingsAutoHotspot] },
-  { key: 'system', items: [SystemControls] },
+  { key: 'system', items: [SystemControls, SettingsCoverArt] },
 ];
 
 const Settings = () => {

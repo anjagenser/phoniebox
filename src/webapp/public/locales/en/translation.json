@@ -280,6 +280,12 @@
       "network": "Network",
       "system": "System"
     },
+    "coverart": {
+      "title": "Cover art",
+      "description": "Rebuild the cover-art cache. Use this after adding cover images (embedded tags or a cover.jpg in a folder) so they are picked up.",
+      "flush": "Flush cover art cache",
+      "flushed": "Cover art cache cleared"
+    },
     "feature-not-enabled": "🚧 This feature is not yet enabled.",
     "dialogs": {
       "reboot": {

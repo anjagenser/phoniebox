@@ -15,6 +15,11 @@ const commands = {
     method: 'get_folder_coverart',
     argKeys: ['folder'],
   },
+  flushCoverArt: {
+    _package: 'player',
+    plugin: 'ctrl',
+    method: 'flush_coverart_cache',
+  },
   directoryTreeOfAudiofolder: {
     _package: 'player',
     plugin: 'ctrl',

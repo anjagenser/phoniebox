@@ -280,6 +280,12 @@
       "network": "Netzwerk",
       "system": "System"
     },
+    "coverart": {
+      "title": "Cover-Bilder",
+      "description": "Den Cover-Cache neu aufbauen. Nach dem Hinzufügen von Cover-Bildern (eingebettet oder als cover.jpg im Ordner) verwenden, damit sie übernommen werden.",
+      "flush": "Cover-Cache leeren",
+      "flushed": "Cover-Cache geleert"
+    },
     "feature-not-enabled": "🚧 Diese Funktion ist noch nicht aktiviert.",
     "dialogs": {
       "reboot": {
