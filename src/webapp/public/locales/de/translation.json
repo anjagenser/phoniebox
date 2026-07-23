@@ -254,6 +254,14 @@
     }
   },
   "settings": {
+    "sections": {
+      "general": "Allgemein",
+      "playback": "Wiedergabe",
+      "cards": "Karten",
+      "schedule": "Zeitplan",
+      "network": "Netzwerk",
+      "system": "System"
+    },
     "feature-not-enabled": "🚧 Diese Funktion ist noch nicht aktiviert.",
     "dialogs": {
       "reboot": {

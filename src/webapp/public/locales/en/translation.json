@@ -254,6 +254,14 @@
     }
   },
   "settings": {
+    "sections": {
+      "general": "General",
+      "playback": "Playback",
+      "cards": "Cards",
+      "schedule": "Schedule",
+      "network": "Network",
+      "system": "System"
+    },
     "feature-not-enabled": "🚧 This feature is not yet enabled.",
     "dialogs": {
       "reboot": {
