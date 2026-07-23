@@ -64,6 +64,35 @@ const commands = {
     plugin: 'ctrl',
     method: 'get_folder_content',
   },
+  renamePath: {
+    _package: 'player',
+    plugin: 'ctrl',
+    method: 'rename_path',
+    argKeys: ['rel_path', 'new_name'],
+  },
+  movePath: {
+    _package: 'player',
+    plugin: 'ctrl',
+    method: 'move_path',
+    argKeys: ['rel_path', 'dest_folder'],
+  },
+  deletePath: {
+    _package: 'player',
+    plugin: 'ctrl',
+    method: 'delete_path',
+    argKeys: ['rel_path'],
+  },
+  createFolder: {
+    _package: 'player',
+    plugin: 'ctrl',
+    method: 'create_folder',
+    argKeys: ['parent', 'name'],
+  },
+  rescanLibrary: {
+    _package: 'player',
+    plugin: 'ctrl',
+    method: 'update_wait',
+  },
   cardsList: {
     _package: 'cards',
     plugin: 'list_cards',
@@ -367,6 +396,27 @@ const commands = {
   shutdown: {
     _package: 'host',
     plugin: 'shutdown',
+  },
+  restartService: {
+    _package: 'host',
+    plugin: 'restart_service',
+  },
+  restartMopidy: {
+    _package: 'host',
+    plugin: 'restart_mopidy',
+  },
+  getServicesStatus: {
+    _package: 'host',
+    plugin: 'get_services_status',
+  },
+  getLogLevel: {
+    _package: 'host',
+    plugin: 'get_log_level',
+  },
+  setLogLevel: {
+    _package: 'host',
+    plugin: 'set_log_level',
+    argKeys: ['level'],
   },
   say_my_ip: {
     _package: 'host',

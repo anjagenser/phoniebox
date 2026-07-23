@@ -18,6 +18,7 @@ const FolderList = ({
   folders,
   isSelecting,
   registerMusicToCard,
+  onChanged,
 }) => {
   const { t } = useTranslation();
 
@@ -48,6 +49,7 @@ const FolderList = ({
           folder={folder}
           isSelecting={isSelecting}
           registerMusicToCard={registerMusicToCard}
+          onChanged={onChanged}
         />
       )}
     </List>
