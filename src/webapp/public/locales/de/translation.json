@@ -196,7 +196,8 @@
       "folders": "Ordner"
     },
     "selector-header": {
-      "title": "Wähle ein Album, einen Ordner oder einen Song aus"
+      "title": "Wähle ein Album, einen Ordner oder einen Song aus",
+      "show-all": "Alle Einträge anzeigen"
     },
     "folders": {
       "no-music": "☝️ Keine Musik vorhanden!",
@@ -212,6 +213,23 @@
       "empty-library": "Deine Bibliothek ist noch leer!",
       "no-songs-in-album": "Komisch, in diesem Album gibt es keine Songs.",
       "assign-to-card": "Dieses Album registrieren"
+    },
+    "actions": {
+      "menu": "Weitere Aktionen",
+      "rename": "Umbenennen",
+      "move": "Verschieben",
+      "delete": "Löschen",
+      "new-folder": "Neuer Ordner",
+      "folder-name": "Ordnername",
+      "destination": "Zielordner",
+      "root-folder": "Musikbibliothek (Stammordner)",
+      "move-title": "\"{{name}}\" verschieben",
+      "delete-file-confirm": "Die Datei \"{{name}}\" löschen? Das kann nicht rückgängig gemacht werden.",
+      "delete-folder-confirm": "Den Ordner \"{{name}}\" mit dem gesamten Inhalt löschen? Das kann nicht rückgängig gemacht werden.",
+      "renamed": "Erfolgreich umbenannt",
+      "moved": "Erfolgreich verschoben",
+      "deleted": "Erfolgreich gelöscht",
+      "folder-created": "Ordner erstellt"
     }
   },
   "navigation": {
@@ -278,7 +296,8 @@
       "cards": "Karten",
       "schedule": "Zeitplan",
       "network": "Netzwerk",
-      "system": "System"
+      "system": "System",
+      "maintenance": "Wartung"
     },
     "coverart": {
       "title": "Cover-Bilder",
@@ -416,6 +435,16 @@
       },
       "version": {
         "label": "Jukebox Core Version"
+      },
+      "services": {
+        "label": "Dienste",
+        "state": {
+          "active": "läuft",
+          "inactive": "gestoppt",
+          "failed": "fehlgeschlagen",
+          "not-found": "nicht installiert",
+          "unknown": "unbekannt"
+        }
       }
     },
     "audio": {
@@ -459,6 +488,26 @@
     },
     "systemcontrols": {
       "title": "Systemsteuerung"
+    },
+    "libraryscan": {
+      "title": "Musikbibliothek",
+      "description": "Die Musikbibliothek neu einlesen, damit neue, umbenannte oder verschobene Dateien erfasst werden.",
+      "scan": "Bibliothek neu einlesen",
+      "done": "Neueinlesen der Bibliothek gestartet"
+    },
+    "servicerestart": {
+      "title": "Dienste neu starten",
+      "description": "Einen Dienst neu starten, falls er nicht richtig funktioniert. Ein Neustart der Jukebox unterbricht kurz die Web-App.",
+      "mopidy": "Mopidy neu starten",
+      "jukebox": "Jukebox neu starten",
+      "mopidy-done": "Mopidy-Neustart angefordert",
+      "jukebox-done": "Jukebox-Neustart angefordert"
+    },
+    "loglevel": {
+      "title": "Protokollstufe",
+      "description": "Legt fest, wie ausführlich das Backend protokolliert. Für Fehlerberichte DEBUG verwenden.",
+      "label": "Protokollstufe",
+      "changed": "Protokollstufe auf {{level}} gesetzt"
     }
   }
 }

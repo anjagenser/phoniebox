@@ -196,7 +196,8 @@
       "folders": "Folders"
     },
     "selector-header": {
-      "title": "Select an album, folder or song"
+      "title": "Select an album, folder or song",
+      "show-all": "Show all items"
     },
     "folders": {
       "no-music": "☝️ No music found!",
@@ -212,6 +213,23 @@
       "empty-library": "Your library is empty!",
       "no-songs-in-album": "Strange, no songs in this album.",
       "assign-to-card": "Assign album to card"
+    },
+    "actions": {
+      "menu": "More actions",
+      "rename": "Rename",
+      "move": "Move",
+      "delete": "Delete",
+      "new-folder": "New folder",
+      "folder-name": "Folder name",
+      "destination": "Destination folder",
+      "root-folder": "Music library (root)",
+      "move-title": "Move \"{{name}}\"",
+      "delete-file-confirm": "Delete the file \"{{name}}\"? This cannot be undone.",
+      "delete-folder-confirm": "Delete the folder \"{{name}}\" and all its contents? This cannot be undone.",
+      "renamed": "Renamed successfully",
+      "moved": "Moved successfully",
+      "deleted": "Deleted successfully",
+      "folder-created": "Folder created"
     }
   },
   "navigation": {
@@ -278,7 +296,8 @@
       "cards": "Cards",
       "schedule": "Schedule",
       "network": "Network",
-      "system": "System"
+      "system": "System",
+      "maintenance": "Maintenance"
     },
     "coverart": {
       "title": "Cover art",
@@ -416,6 +435,16 @@
       },
       "version": {
         "label": "Jukebox Core Version"
+      },
+      "services": {
+        "label": "Services",
+        "state": {
+          "active": "running",
+          "inactive": "stopped",
+          "failed": "failed",
+          "not-found": "not installed",
+          "unknown": "unknown"
+        }
       }
     },
     "audio": {
@@ -461,6 +490,26 @@
     },
     "systemcontrols": {
       "title": "System Controls"
+    },
+    "libraryscan": {
+      "title": "Music library",
+      "description": "Rescan the music library so newly added, renamed or moved files are indexed.",
+      "scan": "Rescan library",
+      "done": "Library rescan started"
+    },
+    "servicerestart": {
+      "title": "Restart services",
+      "description": "Restart a service if it is misbehaving. Restarting the Jukebox will briefly interrupt the web app.",
+      "mopidy": "Restart Mopidy",
+      "jukebox": "Restart Jukebox",
+      "mopidy-done": "Mopidy restart requested",
+      "jukebox-done": "Jukebox restart requested"
+    },
+    "loglevel": {
+      "title": "Log level",
+      "description": "Set how much detail the backend writes to its log. Use DEBUG when reporting a problem.",
+      "label": "Log level",
+      "changed": "Log level set to {{level}}"
     }
   }
 }
