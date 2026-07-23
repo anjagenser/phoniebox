@@ -10,10 +10,15 @@ server {
 
 	location / {
  		location = /index.html {
+ 			 # Never cache the entry document, so a rebuilt WebApp (new hashed
+ 			 # bundle filenames) is picked up immediately instead of the browser
+ 			 # keeping a stale index.html that points at an old bundle.
+ 			 add_header Cache-Control "no-store" always;
  			 error_page 404 = @buildwebui;
  			 log_not_found off;
  		}
  		location = / {
+ 			 add_header Cache-Control "no-store" always;
 		         error_page 404 = @buildwebui;
 			 log_not_found off;
  		}
