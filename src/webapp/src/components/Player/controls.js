@@ -1,4 +1,4 @@
-import React, { memo, useContext, useEffect } from 'react';
+import React, { memo, useContext } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import Grid from '@mui/material/Grid';
@@ -18,18 +18,18 @@ import request from '../../utils/request';
 const Controls = () => {
   const { t } = useTranslation();
   const {
-    state,
-    setState,
+    state: { playerstatus },
   } = useContext(PlayerContext);
 
-  const {
-    isPlaying,
-    playerstatus,
-    isShuffle,
-    isRepeat,
-    isSingle,
-    songIsScheduled
-  } = state;
+  // Derive the control flags directly from the live playerstatus on every
+  // render. Deriving them here (instead of caching them in context via an
+  // effect that only runs while this home-page component is mounted) keeps the
+  // play/pause icon in sync everywhere, including the mini-player on other tabs.
+  const isPlaying = playerstatus?.state === 'play';
+  const songIsScheduled = !!playerstatus?.songid;
+  const isShuffle = playerstatus?.random === '1';
+  const isRepeat = playerstatus?.repeat === '1';
+  const isSingle = playerstatus?.single === '1';
 
   const toggleShuffle = () => {
     request('shuffle', { option: 'toggle' });
@@ -38,17 +38,6 @@ const Controls = () => {
   const toggleRepeat = () => {
     request('repeat', { option: 'toggle' });
   }
-
-  useEffect(() => {
-    setState({
-      ...state,
-      isPlaying: playerstatus?.state === 'play' ? true : false,
-      songIsScheduled: playerstatus?.songid ? true : false,
-      isShuffle: playerstatus?.random === '1' ? true : false,
-      isRepeat: playerstatus?.repeat === '1' ? true : false,
-      isSingle: playerstatus?.single === '1' ? true : false,
-    });
-  }, [playerstatus]);
 
   const iconStyles = { padding: '7px' };
 

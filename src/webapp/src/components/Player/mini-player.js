@@ -25,9 +25,12 @@ const SAFE_AREA_BOTTOM = 'env(safe-area-inset-bottom, 0px)';
 const MiniPlayer = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { state } = useContext(PlayerContext);
+  const { state: { playerstatus } } = useContext(PlayerContext);
 
-  const { playerstatus, isPlaying, songIsScheduled } = state;
+  // Derive play state directly from the live playerstatus so the button stays
+  // correct on every tab (the cached flags are only set on the home page).
+  const isPlaying = playerstatus?.state === 'play';
+  const songIsScheduled = !!playerstatus?.songid;
 
   const title = playerstatus?.title || playerstatus?.file || t('player.display.no-song-in-queue');
   const artist = playerstatus?.artist;
