@@ -174,15 +174,17 @@
   },
   "library": {
     "upload": {
-      "button-label": "Upload files",
-      "dialog-title": "Upload audio files",
+      "button-label": "Upload files or folders",
+      "dialog-title": "Upload music",
       "destination-label": "Destination folder",
       "destination-placeholder": "e.g. My Album",
       "select-files": "Select audio files",
       "upload-button": "Upload",
       "cancel": "Cancel",
       "success": "{{count}} file(s) uploaded successfully",
-      "error": "Upload failed: {{message}}"
+      "error": "Upload failed: {{message}}",
+      "select-folder": "Select a folder",
+      "cover-hint": "A picture named cover.jpg (or cover.png) inside the folder is used as the album cover."
     },
     "loading-error": "An error occurred while loading the library.",
     "header": {

@@ -174,15 +174,17 @@
   },
   "library": {
     "upload": {
-      "button-label": "Dateien hochladen",
-      "dialog-title": "Audiodateien hochladen",
+      "button-label": "Dateien oder Ordner hochladen",
+      "dialog-title": "Musik hochladen",
       "destination-label": "Zielordner",
       "destination-placeholder": "z.B. Mein Album",
       "select-files": "Audiodateien auswählen",
       "upload-button": "Hochladen",
       "cancel": "Abbrechen",
       "success": "{{count}} Datei(en) erfolgreich hochgeladen",
-      "error": "Upload fehlgeschlagen: {{message}}"
+      "error": "Upload fehlgeschlagen: {{message}}",
+      "select-folder": "Ordner auswählen",
+      "cover-hint": "Ein Bild mit dem Namen cover.jpg (oder cover.png) im Ordner wird als Albumcover verwendet."
     },
     "loading-error": "Die Bibliothek konnte nicht geladen werden.",
     "header": {

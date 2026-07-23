@@ -202,12 +202,23 @@ class _UploadHandler(BaseHTTPRequestHandler):
         for filename, data in files:
             if not filename:
                 continue
-            filename = os.path.basename(filename)
-            dest = os.path.join(dest_dir, filename)
+            # Preserve any subfolder structure carried in the filename. Folder
+            # uploads from the web UI send the browser's webkitRelativePath here
+            # (e.g. "My Album/track01.mp3", "My Album/cover.jpg"), so the whole
+            # album folder is recreated on disk in one upload. Normalise the
+            # separators, keep the path relative, and verify it resolves inside
+            # the destination before writing.
+            rel = os.path.normpath(filename.replace('\\', '/').lstrip('/'))
+            dest = os.path.join(dest_dir, rel)
+            if not is_within_directory(dest_dir, dest):
+                errors.append(filename)
+                logger.error(f"Rejected path traversal in upload filename: {filename}")
+                continue
             try:
+                os.makedirs(os.path.dirname(dest), exist_ok=True)
                 with open(dest, 'wb') as fh:
                     shutil.copyfileobj(io.BytesIO(data), fh)
-                saved.append(filename)
+                saved.append(rel)
                 logger.info(f"Uploaded file: {dest}")
             except OSError as e:
                 errors.append(filename)

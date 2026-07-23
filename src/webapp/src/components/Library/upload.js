@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import Alert from '@mui/material/Alert';
@@ -16,6 +16,7 @@ import Tooltip from '@mui/material/Tooltip';
 import { useTheme } from '@mui/material/styles';
 
 import UploadFileIcon from '@mui/icons-material/UploadFile';
+import FolderIcon from '@mui/icons-material/Folder';
 
 import { MINI_PLAYER_HEIGHT, NAV_HEIGHT, SAFE_AREA_BOTTOM } from '../Player/mini-player';
 
@@ -29,15 +30,29 @@ const Upload = () => {
   const { t } = useTranslation();
   const theme = useTheme();
   const fileInputRef = useRef(null);
+  const folderInputRef = useRef(null);
 
   const [open, setOpen] = useState(false);
   const [files, setFiles] = useState([]);
+  const [isFolder, setIsFolder] = useState(false);
   const [destination, setDestination] = useState('');
   const [uploading, setUploading] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
+  // webkitdirectory / directory are non-standard attributes that React strips
+  // from the rendered element, so set them on the DOM node directly to turn the
+  // hidden input into a folder picker.
+  useEffect(() => {
+    const input = folderInputRef.current;
+    if (input) {
+      input.setAttribute('webkitdirectory', '');
+      input.setAttribute('directory', '');
+    }
+  }, [open]);
+
   const handleOpen = () => {
     setFiles([]);
+    setIsFolder(false);
     setDestination('');
     setOpen(true);
   };
@@ -48,8 +63,22 @@ const Upload = () => {
     }
   };
 
+  // Drop OS junk / hidden entries that a folder pick would otherwise sweep in
+  // (e.g. .DS_Store, Thumbs.db, resource forks under a leading dot).
+  const keepFile = (file) => {
+    const name = (file.webkitRelativePath || file.name);
+    return !name.split('/').some((seg) => seg.startsWith('.'))
+      && name.toLowerCase() !== 'thumbs.db';
+  };
+
   const handleFileChange = (event) => {
-    setFiles(Array.from(event.target.files));
+    setIsFolder(false);
+    setFiles(Array.from(event.target.files).filter(keepFile));
+  };
+
+  const handleFolderChange = (event) => {
+    setIsFolder(true);
+    setFiles(Array.from(event.target.files).filter(keepFile));
   };
 
   const handleUpload = async () => {
@@ -59,7 +88,10 @@ const Upload = () => {
 
     const formData = new FormData();
     files.forEach((file) => {
-      formData.append('files', file);
+      // For a folder pick, webkitRelativePath ("My Album/track01.mp3") carries
+      // the structure so the backend recreates the album folder as-is.
+      const name = file.webkitRelativePath || file.name;
+      formData.append('files', file, name);
     });
     if (destination.trim()) {
       formData.append('folder', destination.trim());
@@ -130,14 +162,29 @@ const Upload = () => {
             startIcon={<UploadFileIcon />}
           >
             {t('library.upload.select-files')}
-            {files.length > 0 && ` (${files.length})`}
+            {!isFolder && files.length > 0 && ` (${files.length})`}
             <input
               ref={fileInputRef}
               type="file"
-              accept="audio/*"
+              accept="audio/*,image/*"
               multiple
               hidden
               onChange={handleFileChange}
+            />
+          </Button>
+          <Button
+            variant="outlined"
+            component="label"
+            startIcon={<FolderIcon />}
+          >
+            {t('library.upload.select-folder')}
+            {isFolder && files.length > 0 && ` (${files.length})`}
+            <input
+              ref={folderInputRef}
+              type="file"
+              multiple
+              hidden
+              onChange={handleFolderChange}
             />
           </Button>
           <TextField
@@ -148,6 +195,9 @@ const Upload = () => {
             size="small"
             fullWidth
           />
+          <Alert severity="info" sx={{ py: 0 }}>
+            {t('library.upload.cover-hint')}
+          </Alert>
         </DialogContent>
         <DialogActions>
           <Button onClick={handleClose} disabled={uploading}>
