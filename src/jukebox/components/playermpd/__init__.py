@@ -241,6 +241,10 @@ class PlayerMPD:
         self.mpd_status_poll_interval = 0.25
         self.mpd_lock = MpdLock(self.mpd_client, self.mpd_host, 6600)
         self.status_is_closing = False
+        # Coalescing background library rescan (see _rescan_library_async)
+        self._rescan_lock = threading.Lock()
+        self._rescan_running = False
+        self._rescan_pending = False
         # self.status_thread = threading.Timer(self.mpd_status_poll_interval, self._mpd_status_poll).start()
 
         self.status_thread = multitimer.GenericEndlessTimerClass('mpd.timer_status',
@@ -487,6 +491,41 @@ class PlayerMPD:
         state = self.update()
         self._db_wait_for_update(state)
         return state
+
+    def _rescan_worker(self):
+        """Run library rescans one at a time, coalescing queued requests."""
+        while True:
+            with self._rescan_lock:
+                if not self._rescan_pending:
+                    self._rescan_running = False
+                    return
+                self._rescan_pending = False
+            try:
+                self.update_wait()
+            except Exception as e:
+                logger.error(f"Background library rescan failed: {e.__class__.__name__}: {e}")
+
+    def _rescan_library_async(self):
+        """Trigger a library rescan in the background without blocking the caller.
+
+        File-management operations use this so the RPC returns immediately: the
+        web app's folder view reads the filesystem directly and reflects changes
+        at once, while Mopidy's index (album view / playback URIs) catches up in
+        the background. Requests are coalesced so overlapping edits do not pile up
+        concurrent scans.
+        """
+        with self._rescan_lock:
+            self._rescan_pending = True
+            if self._rescan_running:
+                return
+            self._rescan_running = True
+        threading.Thread(target=self._rescan_worker, name='library-rescan', daemon=True).start()
+
+    @plugs.tag
+    def start_library_rescan(self):
+        """Kick off a library rescan in the background and return immediately."""
+        self._rescan_library_async()
+        return 'started'
 
     @plugs.tag
     def play(self):
@@ -1011,7 +1050,7 @@ class PlayerMPD:
             raise FileExistsError(f"'{new_name}' already exists")
         os.rename(src, dst)
         logger.info(f"Renamed '{rel_path}' to '{new_name}'")
-        self.update_wait()
+        self._rescan_library_async()
         base = os.path.realpath(components.player.get_music_library_path())
         return os.path.relpath(dst, base)
 
@@ -1037,7 +1076,7 @@ class PlayerMPD:
             raise FileExistsError(f"'{os.path.basename(src)}' already exists in the destination")
         shutil.move(src, dst)
         logger.info(f"Moved '{rel_path}' to '{dest_folder}'")
-        self.update_wait()
+        self._rescan_library_async()
         base = os.path.realpath(components.player.get_music_library_path())
         return os.path.relpath(dst, base)
 
@@ -1058,7 +1097,7 @@ class PlayerMPD:
         else:
             os.remove(target)
         logger.info(f"Deleted '{rel_path}'")
-        self.update_wait()
+        self._rescan_library_async()
 
     @plugs.tag
     def create_folder(self, parent: str, name: str) -> str:

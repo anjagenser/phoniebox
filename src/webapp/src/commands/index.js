@@ -91,7 +91,7 @@ const commands = {
   rescanLibrary: {
     _package: 'player',
     plugin: 'ctrl',
-    method: 'update_wait',
+    method: 'start_library_rescan',
   },
   cardsList: {
     _package: 'cards',
