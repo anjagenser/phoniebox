@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Navigate,
   Route,
@@ -19,6 +19,7 @@ import LibraryHeader from "../library-header";
 import SelectorHeader from "../selector-header";
 import Upload from "../upload";
 
+import request from '../../../utils/request';
 import { buildActionData } from '../../Cards/utils';
 
 const LibraryLists = () => {
@@ -28,6 +29,36 @@ const LibraryLists = () => {
   const [isSelecting] = useState(searchParams.get('isSelecting'));
   const [cardId] = useState(searchParams.get('cardId'));
   const [musicFilter, setMusicFilter] = useState('');
+  // When picking music for a card, hide items already assigned to a card by
+  // default; the SelectorHeader switch reveals everything.
+  const [showAll, setShowAll] = useState(false);
+  const [cardsList, setCardsList] = useState({});
+
+  useEffect(() => {
+    if (!isSelecting) return;
+    request('cardsList').then(({ result }) => {
+      if (result) setCardsList(result);
+    });
+  }, [isSelecting]);
+
+  // Sets of media values already assigned to any card, keyed by play command.
+  const assigned = useMemo(() => {
+    const folders = new Set();
+    const files = new Set();
+    Object.values(cardsList || {}).forEach((card) => {
+      const value = card?.action?.args?.[0];
+      if (value === undefined || value === null) return;
+      if (card.from_alias === 'play_folder') folders.add(String(value));
+      if (card.from_alias === 'play_single') files.add(String(value));
+    });
+    return { folders, files };
+  }, [cardsList]);
+
+  const isAssigned = (item) => {
+    if (item.type === 'directory') return assigned.folders.has(String(item.relpath));
+    if (item.type === 'file') return assigned.files.has(String(item.relpath));
+    return false;
+  };
 
   const handleMusicFilter = (event) => {
     setMusicFilter(event.target.value);
@@ -47,7 +78,7 @@ const LibraryLists = () => {
 
   return (
     <Grid container id="library">
-      {isSelecting && <SelectorHeader />}
+      {isSelecting && <SelectorHeader showAll={showAll} setShowAll={setShowAll} />}
       {!isSelecting && <Upload />}
       <Grid container sx={{ padding: '10px' }}>
         <LibraryHeader
@@ -89,6 +120,8 @@ const LibraryLists = () => {
                   musicFilter={musicFilter}
                   isSelecting={isSelecting}
                   registerMusicToCard={registerMusicToCard}
+                  isAssigned={isAssigned}
+                  showAll={showAll}
                 />
               }
             />
