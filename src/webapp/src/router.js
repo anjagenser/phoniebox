@@ -7,6 +7,7 @@ import Navigation from './components/Navigation';
 import Player from './components/Player'
 import MiniPlayer, { MINI_PLAYER_HEIGHT, NAV_HEIGHT, SAFE_AREA_BOTTOM } from './components/Player/mini-player';
 import Settings from './components/Settings'
+import Statistics from './components/Statistics'
 
 import Grid from '@mui/material/Grid';
 
@@ -53,6 +54,10 @@ const AppLayout = () => {
             path="settings/*"
             element={<Settings/>}
             exact
+          />
+          <Route
+            path="statistics/*"
+            element={<Statistics/>}
           />
         </Routes>
       </Grid>

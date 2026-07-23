@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git -C /home/anja/Projects/RPi-Jukebox-RFID log --oneline --all)",
+      "Bash(git -C /home/anja/Projects/RPi-Jukebox-RFID diff --stat HEAD)",
+      "Bash(git -C /home/anja/Projects/RPi-Jukebox-RFID status --short)"
+    ]
+  }
+}

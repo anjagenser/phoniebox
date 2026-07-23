@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 
 import BottomNavigation from '@mui/material/BottomNavigation';
 import BottomNavigationAction from '@mui/material/BottomNavigationAction';
+import BarChartIcon from '@mui/icons-material/BarChart';
 import BookmarksIcon from '@mui/icons-material/Bookmarks';
 import HomeIcon from '@mui/icons-material/Home';
 import MusicNoteIcon from '@mui/icons-material/MusicNote';
@@ -20,7 +21,8 @@ export default function Navigation() {
   useEffect(() => {
     if (pathname.startsWith('/library')) return setValue(1);
     if (pathname.startsWith('/cards')) return setValue(2);
-    if (pathname.startsWith('/settings')) return setValue(3);
+    if (pathname.startsWith('/statistics')) return setValue(3);
+    if (pathname.startsWith('/settings')) return setValue(4);
     return setValue(0);
   }, [pathname]);
 
@@ -59,6 +61,12 @@ export default function Navigation() {
         to="/cards"
         label={t('navigation.cards')}
         icon={<BookmarksIcon />}
+      />
+      <BottomNavigationAction
+        component={Link}
+        to="/statistics"
+        label={t('navigation.statistics')}
+        icon={<BarChartIcon />}
       />
       <BottomNavigationAction
         component={Link}

@@ -200,7 +200,24 @@
     "start": "Start",
     "library": "Library",
     "cards": "Cards",
+    "statistics": "Statistics",
     "settings": "Settings"
+  },
+  "statistics": {
+    "title": "Statistics",
+    "summary": "{{swipes}} swipes, {{plays}} songs played",
+    "top-cards": "Most swiped cards",
+    "top-songs": "Most played songs",
+    "no-cards": "No card swipes recorded yet.",
+    "no-songs": "No songs played yet.",
+    "empty": "No statistics recorded yet. Swipe a card or play a song to get started.",
+    "loading-error": "The statistics could not be loaded.",
+    "refresh": "Refresh",
+    "reset": "Reset",
+    "reset-dialog": {
+      "title": "Reset statistics?",
+      "description": "This permanently deletes all recorded swipe and play counts. This cannot be undone."
+    }
   },
   "player": {
     "controls": {

@@ -374,6 +374,17 @@ const commands = {
     plugin: 'get_box_name',
   },
 
+  getStatistics: {
+    _package: 'misc',
+    plugin: 'get_statistics',
+    argKeys: ['limit'],
+  },
+
+  resetStatistics: {
+    _package: 'misc',
+    plugin: 'reset_statistics',
+  },
+
   getLogDebug: {
     _package: 'misc',
     plugin: 'get_log_debug',
