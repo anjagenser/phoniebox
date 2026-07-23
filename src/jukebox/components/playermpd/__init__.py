@@ -115,6 +115,10 @@ cfg = jukebox.cfghandler.get_handler('jukebox')
 # can render a readable card list without hitting Mopidy on every request.
 _uri_details_cache = {}
 
+# Cache of resolved URI -> [{'name': str|None, 'artist': str|None}, ...] (track
+# listing), so the web app can show a card's Spotify content without re-querying.
+_uri_tracks_cache = {}
+
 
 class MpdLock:
     def __init__(self, client: mpd.MPDClient, host: str, port: int):
@@ -810,6 +814,48 @@ class PlayerMPD:
         the web app to show a readable label and cover on the cards tab.
         """
         return self._resolve_uri_details(uri)
+
+    def _resolve_uri_tracks(self, uri: str):
+        """Resolve a URI to a list of ``{'name': ..., 'artist': ...}`` (cached)."""
+        if not uri:
+            return []
+        uri = components.player.uri.normalize_uri(uri)
+        if getattr(self, 'player_backend', 'mpd') != 'mopidy':
+            return []
+        if uri in _uri_tracks_cache:
+            return [dict(t) for t in _uri_tracks_cache[uri]]
+
+        tracks = []
+        try:
+            if ':playlist:' in uri:
+                playlist = self._mopidy_rpc('core.playlists.lookup', {'uri': uri})
+                items = (playlist or {}).get('tracks') or []
+            else:
+                result = self._mopidy_rpc('core.library.lookup', {'uris': [uri]})
+                items = (result or {}).get(uri) or []
+            for track in items:
+                artists = track.get('artists') or []
+                tracks.append({
+                    'name': track.get('name'),
+                    'artist': artists[0].get('name') if artists else None,
+                })
+        except Exception as e:
+            logger.debug(f"_resolve_uri_tracks('{uri}') failed: {e.__class__.__name__}: {e}")
+            return []
+
+        _uri_tracks_cache[uri] = tracks
+        return [dict(t) for t in tracks]
+
+    @plugs.tag
+    def get_uri_tracks(self, uri: str):
+        """Resolve a playback URI to its track listing.
+
+        Returns a list of ``{'name': ..., 'artist': ...}`` for a Spotify (or other
+        Mopidy-backed) album, playlist, artist or track, so the web app can show
+        what a card will play. Empty list when it cannot be resolved (real MPD
+        backend, Mopidy unreachable, or an unknown/invalid URI).
+        """
+        return self._resolve_uri_tracks(uri)
 
     @plugs.tag
     def resume(self):
