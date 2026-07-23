@@ -3,6 +3,7 @@ from mutagen.id3 import ID3, APIC
 from pathlib import Path
 import hashlib
 import logging
+import urllib.request
 from queue import Queue
 from threading import Thread
 import jukebox.cfghandler
@@ -43,6 +44,57 @@ class CoverartCacheManager:
 
     def save_to_cache(self, mp3_file_path: str):
         self.write_queue.put(mp3_file_path)
+
+    def lookup_remote(self, cache_id: str) -> str:
+        """Return the cached filename for a previously-downloaded remote image.
+
+        ``cache_id`` is any stable string (e.g. a Spotify URI). Returns the
+        filename if already cached, ``NO_CACHE`` ('') if a no-art marker exists,
+        or ``None`` if it has not been downloaded yet.
+        """
+        if not self.cache_folder_path.exists():
+            return None
+        cache_key = self.generate_cache_key(cache_id)
+        for path in self.cache_folder_path.iterdir():
+            if path.stem == cache_key:
+                if path.suffix == f".{NO_COVER_ART_EXTENSION}":
+                    return NO_CACHE
+                return path.name
+        return None
+
+    def cache_remote(self, cache_id: str, url: str) -> str:
+        """Ensure a remote image URL is cached locally; return its filename.
+
+        Returns the filename if already cached, otherwise queues a background
+        download (so the caller/RPC thread is never blocked on the network) and
+        returns ``CACHE_PENDING``.
+        """
+        existing = self.lookup_remote(cache_id)
+        if existing is not None:
+            return existing
+        self.write_queue.put(('remote', cache_id, url))
+        return CACHE_PENDING
+
+    def _save_remote_to_cache(self, cache_id: str, url: str):
+        cache_key = self.generate_cache_key(cache_id)
+        try:
+            request = urllib.request.Request(url, headers={'User-Agent': 'phoniebox'})
+            with urllib.request.urlopen(request, timeout=10) as response:
+                data = response.read()
+                content_type = response.headers.get('Content-Type', 'image/jpeg')
+        except Exception as e:
+            # Leave it uncached so it is retried on a later request (do not write
+            # a no-art marker for a transient network/Spotify failure).
+            logger.error(f"Error downloading cover art from {url}: {e}")
+            return
+
+        file_extension = ('jpg' if 'jpeg' in content_type or 'jpg' in content_type
+                          else (content_type.split('/')[-1].split(';')[0] or 'jpg'))
+        cache_filename = f"{cache_key}.{file_extension}"
+        self.cache_folder_path.mkdir(parents=True, exist_ok=True)
+        with (self.cache_folder_path / cache_filename).open('wb') as file:
+            file.write(data)
+            logger.debug(f"Cached remote cover: {cache_filename}")
 
     def _save_to_cache(self, mp3_file_path: str):
         base_filename = Path(mp3_file_path).stem
@@ -92,9 +144,13 @@ class CoverartCacheManager:
 
     def process_write_requests(self):
         while True:
-            mp3_file_path = self.write_queue.get()
+            item = self.write_queue.get()
             try:
-                self._save_to_cache(mp3_file_path)
+                if isinstance(item, tuple) and item and item[0] == 'remote':
+                    _, cache_id, url = item
+                    self._save_remote_to_cache(cache_id, url)
+                else:
+                    self._save_to_cache(item)
             except Exception as e:
                 logger.error(f"Error processing write request: {e}")
             self.write_queue.task_done()

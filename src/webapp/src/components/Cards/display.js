@@ -14,7 +14,9 @@ export const resolveCardDisplay = async (card) => {
     if (command === 'play_uri' && args[0]) {
       const { result } = await request('getUriDetails', { uri: args[0] });
       if (result) {
-        return { name: result.name || null, image: result.image || null };
+        // image is a locally-cached cover filename (served from /cover-cache),
+        // CACHE_PENDING while it downloads, or null/'' when there is none.
+        return { name: result.name || null, image: cachePath(result.image) };
       }
     } else if (command === 'play_album' && args[0] && args[1]) {
       const { result } = await request('getAlbumCoverArt', {

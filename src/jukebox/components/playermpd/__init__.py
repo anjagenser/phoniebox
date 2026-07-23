@@ -111,8 +111,9 @@ from .coverart_cache_manager import CoverartCacheManager
 logger = logging.getLogger('jb.PlayerMPD')
 cfg = jukebox.cfghandler.get_handler('jukebox')
 
-# Cache of resolved URI -> {'name': str|None, 'image': str|None}, so the web app
-# can render a readable card list without hitting Mopidy on every request.
+# Cache of resolved URI -> name (str|None). The name is stable per URI, so it is
+# looked up from Spotify once; the cover image is served from the file-based
+# cover-art cache instead. Together these keep a warm card list Spotify-free.
 _uri_details_cache = {}
 
 # Cache of resolved URI -> [{'name': str|None, 'artist': str|None}, ...] (track
@@ -744,7 +745,19 @@ class PlayerMPD:
         return data.get('result')
 
     def _resolve_uri_image(self, uri: str):
-        """Return the largest available cover image URL for a URI, or ``None``."""
+        """Return a locally-cached cover filename for a URI, or ``None``.
+
+        The Spotify cover is downloaded to the cover-art cache once and then
+        served from ``/cover-cache`` by the web app, so Spotify is not contacted
+        again for the same URI. Returns the cache filename, ``CACHE_PENDING``
+        while the first download runs, or ``None`` when there is no image.
+        """
+        # Already downloaded? Serve the local copy without contacting Spotify.
+        cached = self.coverart_cache_manager.lookup_remote(uri)
+        if cached is not None:
+            return cached or None  # '' (no-art marker) -> None
+
+        # Not cached yet: ask Mopidy for the image URL and cache it locally.
         try:
             result = self._mopidy_rpc('core.library.get_images', {'uris': [uri]})
             images = (result or {}).get(uri) or []
@@ -752,47 +765,57 @@ class PlayerMPD:
                 return None
             # Prefer the largest image (fall back to the first if sizes missing)
             best = max(images, key=lambda i: (i.get('width') or 0) * (i.get('height') or 0))
-            return best.get('uri')
+            url = best.get('uri')
+            if not url:
+                return None
         except Exception as e:
             logger.debug(f"_resolve_uri_image('{uri}') failed: {e.__class__.__name__}: {e}")
             return None
 
+        return self.coverart_cache_manager.cache_remote(uri, url)
+
     def _resolve_uri_details(self, uri: str):
-        """Resolve a URI to ``{'name': ..., 'image': ...}`` via Mopidy (cached)."""
+        """Resolve a URI to ``{'name': ..., 'image': ...}`` via Mopidy.
+
+        The name is looked up from Spotify once and cached in-memory; the image
+        is served from the local cover-art cache (downloaded once). So a warm
+        card list makes no Spotify calls at all.
+        """
         empty = {'name': None, 'image': None}
         if not uri:
             return dict(empty)
         uri = components.player.uri.normalize_uri(uri)
         if getattr(self, 'player_backend', 'mpd') != 'mopidy':
             return dict(empty)
+
         if uri in _uri_details_cache:
-            return dict(_uri_details_cache[uri])
+            name = _uri_details_cache[uri]
+        else:
+            name = None
+            try:
+                if ':playlist:' in uri:
+                    playlist = self._mopidy_rpc('core.playlists.lookup', {'uri': uri})
+                    if playlist:
+                        name = playlist.get('name')
+                else:
+                    result = self._mopidy_rpc('core.library.lookup', {'uris': [uri]})
+                    tracks = (result or {}).get(uri) or []
+                    if tracks:
+                        track = tracks[0]
+                        if ':album:' in uri:
+                            name = (track.get('album') or {}).get('name')
+                        elif ':artist:' in uri:
+                            artists = track.get('artists') or []
+                            name = artists[0].get('name') if artists else None
+                        else:
+                            name = track.get('name')
+                _uri_details_cache[uri] = name
+            except Exception as e:
+                logger.debug(f"_resolve_uri_details('{uri}') failed: {e.__class__.__name__}: {e}")
+                # Do not cache a failed name lookup; still try for a cached image.
+                return {'name': None, 'image': self._resolve_uri_image(uri)}
 
-        name = None
-        try:
-            if ':playlist:' in uri:
-                playlist = self._mopidy_rpc('core.playlists.lookup', {'uri': uri})
-                if playlist:
-                    name = playlist.get('name')
-            else:
-                result = self._mopidy_rpc('core.library.lookup', {'uris': [uri]})
-                tracks = (result or {}).get(uri) or []
-                if tracks:
-                    track = tracks[0]
-                    if ':album:' in uri:
-                        name = (track.get('album') or {}).get('name')
-                    elif ':artist:' in uri:
-                        artists = track.get('artists') or []
-                        name = artists[0].get('name') if artists else None
-                    else:
-                        name = track.get('name')
-        except Exception as e:
-            logger.debug(f"_resolve_uri_details('{uri}') failed: {e.__class__.__name__}: {e}")
-            return dict(empty)
-
-        details = {'name': name, 'image': self._resolve_uri_image(uri)}
-        _uri_details_cache[uri] = details
-        return dict(details)
+        return {'name': name, 'image': self._resolve_uri_image(uri)}
 
     @plugs.tag
     def get_uri_name(self, uri: str):
