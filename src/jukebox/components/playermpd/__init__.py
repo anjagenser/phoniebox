@@ -996,6 +996,46 @@ class PlayerMPD:
         return ''
 
     @plugs.tag
+    def get_folder_covers(self, folder: str) -> dict:
+        """Return cover art for every direct sub-folder of ``folder`` in one call.
+
+        Batches what would otherwise be one ``get_folder_coverart`` RPC per row,
+        which floods the single RPC server and can starve other requests. The
+        result maps each sub-folder's ``relpath`` to a cover cache filename,
+        ``CACHE_PENDING`` while it is generated, or '' when there is none.
+
+        :param folder: Folder path relative to music library path
+        """
+        covers = {}
+        for entry in self.get_folder_content(folder):
+            if entry.get('type') == 'directory':
+                rel = entry.get('relpath')
+                try:
+                    covers[rel] = self.get_folder_coverart(rel)
+                except Exception as e:
+                    logger.error(f"Cover lookup failed for '{rel}': {e.__class__.__name__}: {e}")
+                    covers[rel] = ''
+        return covers
+
+    @plugs.tag
+    def list_directories(self) -> list:
+        """Return all folders in the music library as relative paths.
+
+        Reads the filesystem directly (independent of the MPD/Mopidy backend, so
+        it works on Mopidy where ``listall`` is unreliable). Used e.g. to pick a
+        destination when moving a file or folder.
+        """
+        base = os.path.realpath(components.player.get_music_library_path())
+        dirs = []
+        for root, subdirs, _files in os.walk(base):
+            # Skip hidden directories in place
+            subdirs[:] = sorted(d for d in subdirs if not d.startswith('.'))
+            for d in subdirs:
+                rel = os.path.relpath(os.path.join(root, d), base)
+                dirs.append(rel)
+        return dirs
+
+    @plugs.tag
     def flush_coverart_cache(self):
         """
         Deletes the Cover Art Cache

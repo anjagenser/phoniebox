@@ -19,6 +19,7 @@ const FolderList = ({
   isSelecting,
   registerMusicToCard,
   onChanged,
+  covers = {},
 }) => {
   const { t } = useTranslation();
 
@@ -50,6 +51,7 @@ const FolderList = ({
           isSelecting={isSelecting}
           registerMusicToCard={registerMusicToCard}
           onChanged={onChanged}
+          coverImage={covers[folder.relpath] || null}
         />
       )}
     </List>

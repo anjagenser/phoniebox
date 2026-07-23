@@ -137,25 +137,38 @@ def restart_mopidy():
     return msg
 
 
-def _service_active_state(name, user=True):
-    """Return the ActiveState of a systemd unit ('active'/'inactive'/'failed'),
-    or 'not-found' if the unit does not exist on this host."""
+def _services_active_state(names, user=True):
+    """Return {unit: state} for several systemd units in a single call.
+
+    ``state`` is the ActiveState ('active'/'inactive'/'failed') or 'not-found'
+    when the unit is not installed. Batching keeps this fast: the RPC server is
+    single-threaded, so spawning one ``systemctl`` instead of one per unit avoids
+    blocking other requests.
+    """
+    result = {name: 'unknown' for name in names}
     scope = ['--user'] if user else []
-    ret = subprocess.run(['systemctl', *scope, 'show', name, '--property', 'LoadState,ActiveState', '--value'],
+    ret = subprocess.run(['systemctl', *scope, 'show', *names, '--property', 'LoadState,ActiveState'],
                          stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=False,
                          stdin=subprocess.DEVNULL)
     if ret.returncode != 0:
-        return 'not-found'
+        # Whole call failed (e.g. no user bus): report all as unknown
+        return result
     try:
-        lines = ret.stdout.decode().strip().splitlines()
+        blocks = ret.stdout.decode().strip().split('\n\n')
     except Exception as e:
         logger.error(f"{e.__class__.__name__}: {e}")
-        return 'unknown'
-    load_state = lines[0].strip() if len(lines) > 0 else ''
-    active_state = lines[1].strip() if len(lines) > 1 else ''
-    if load_state == 'not-found':
-        return 'not-found'
-    return active_state or 'unknown'
+        return result
+    for name, block in zip(names, blocks):
+        props = {}
+        for line in block.splitlines():
+            if '=' in line:
+                key, _, value = line.partition('=')
+                props[key.strip()] = value.strip()
+        if props.get('LoadState') == 'not-found':
+            result[name] = 'not-found'
+        else:
+            result[name] = props.get('ActiveState') or 'unknown'
+    return result
 
 
 @plugin.register
@@ -166,11 +179,14 @@ def get_services_status():
         (``'active'``, ``'inactive'``, ``'failed'``) or ``'not-found'`` when the
         unit is not installed (e.g. MPD on a Mopidy box).
     """
+    status = _services_active_state(
+        ['mopidy.service', 'jukebox-daemon.service', 'mpd.service'], user=True)
+    status.update(_services_active_state(['nginx.service'], user=False))
     return {
-        'mopidy': _service_active_state('mopidy.service', user=True),
-        'jukebox-daemon': _service_active_state('jukebox-daemon.service', user=True),
-        'mpd': _service_active_state('mpd.service', user=True),
-        'nginx': _service_active_state('nginx.service', user=False),
+        'mopidy': status.get('mopidy.service', 'unknown'),
+        'jukebox-daemon': status.get('jukebox-daemon.service', 'unknown'),
+        'mpd': status.get('mpd.service', 'unknown'),
+        'nginx': status.get('nginx.service', 'unknown'),
     }
 
 

@@ -15,6 +15,17 @@ const commands = {
     method: 'get_folder_coverart',
     argKeys: ['folder'],
   },
+  getFolderCovers: {
+    _package: 'player',
+    plugin: 'ctrl',
+    method: 'get_folder_covers',
+    argKeys: ['folder'],
+  },
+  listDirectories: {
+    _package: 'player',
+    plugin: 'ctrl',
+    method: 'list_directories',
+  },
   flushCoverArt: {
     _package: 'player',
     plugin: 'ctrl',

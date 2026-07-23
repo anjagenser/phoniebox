@@ -63,13 +63,12 @@ const FolderItemActions = ({ folder, onChanged }) => {
   };
 
   const loadDirs = async () => {
-    const { result } = await request('directoryTreeOfAudiofolder');
-    // MPD listall() returns a flat list; keep only directory entries and drop
-    // the item's own folder (cannot move into itself).
+    // Filesystem-based directory list (works on Mopidy, unlike MPD listall).
+    const { result } = await request('listDirectories');
+    // Drop the item's own folder and anything inside it (cannot move into itself).
+    const prefix = `${relpath}/`;
     const list = Array.isArray(result)
-      ? result
-          .map((entry) => entry.directory)
-          .filter((d) => d && d !== relpath)
+      ? result.filter((d) => d && d !== relpath && !d.startsWith(prefix))
       : [];
     setDirs(list);
   };

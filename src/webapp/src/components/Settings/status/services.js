@@ -29,7 +29,7 @@ const StatusServices = () => {
     };
     fetchData();
     // Refresh periodically so a restart is reflected without reopening settings.
-    const timer = setInterval(fetchData, 10000);
+    const timer = setInterval(fetchData, 30000);
     return () => { active = false; clearInterval(timer); };
   }, []);
 

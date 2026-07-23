@@ -29,15 +29,34 @@ class CoverartCacheManager:
     def generate_cache_key(self, base_filename: str) -> str:
         return f"{COVER_PREFIX}-{hashlib.sha256(base_filename.encode()).hexdigest()}"
 
+    def _find_cached(self, cache_key: str):
+        """Return the cached filename for a key, NO_CACHE for a no-art marker, or
+        None if not cached. Uses direct ``exists()`` probes (O(1)) instead of
+        scanning the whole cache directory on every lookup — the previous
+        ``iterdir()`` made browsing folders with many items flood and time out
+        the single-threaded RPC server. Falls back to a glob only on a miss, to
+        still catch the rare non-jpg/png extension."""
+        if not self.cache_folder_path.exists():
+            return None
+        if (self.cache_folder_path / f"{cache_key}.{NO_COVER_ART_EXTENSION}").exists():
+            return NO_CACHE
+        for ext in ('jpg', 'jpeg', 'png'):
+            candidate = self.cache_folder_path / f"{cache_key}.{ext}"
+            if candidate.exists():
+                return candidate.name
+        for path in self.cache_folder_path.glob(f"{cache_key}.*"):
+            if path.suffix == f".{NO_COVER_ART_EXTENSION}":
+                return NO_CACHE
+            return path.name
+        return None
+
     def get_cache_filename(self, mp3_file_path: str) -> str:
         base_filename = Path(mp3_file_path).stem
         cache_key = self.generate_cache_key(base_filename)
 
-        for path in self.cache_folder_path.iterdir():
-            if path.stem == cache_key:
-                if path.suffix == f".{NO_COVER_ART_EXTENSION}":
-                    return NO_CACHE
-                return path.name
+        hit = self._find_cached(cache_key)
+        if hit is not None:
+            return hit
 
         self.save_to_cache(mp3_file_path)
         return CACHE_PENDING
@@ -52,15 +71,8 @@ class CoverartCacheManager:
         filename if already cached, ``NO_CACHE`` ('') if a no-art marker exists,
         or ``None`` if it has not been downloaded yet.
         """
-        if not self.cache_folder_path.exists():
-            return None
         cache_key = self.generate_cache_key(cache_id)
-        for path in self.cache_folder_path.iterdir():
-            if path.stem == cache_key:
-                if path.suffix == f".{NO_COVER_ART_EXTENSION}":
-                    return NO_CACHE
-                return path.name
-        return None
+        return self._find_cached(cache_key)
 
     def cache_remote(self, cache_id: str, url: str) -> str:
         """Ensure a remote image URL is cached locally; return its filename.

@@ -45,6 +45,7 @@ const Folders = ({
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [folderCover, setFolderCover] = useState(null);
+  const [covers, setCovers] = useState({});
 
   const [newFolderOpen, setNewFolderOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
@@ -60,6 +61,23 @@ const Folders = ({
   }, [decodedDir]);
 
   useEffect(() => { fetchFolderList(); }, [fetchFolderList]);
+
+  // Fetch all sub-folder covers in a single batched call (one RPC instead of one
+  // per row, which used to flood the RPC server and time out the folder listing).
+  useEffect(() => {
+    let active = true;
+    setCovers({});
+    if (!showCovers) return;
+    request('getFolderCovers', { folder: decodedDir }).then(({ result }) => {
+      if (!active || !result) return;
+      const mapped = {};
+      Object.entries(result).forEach(([rel, value]) => {
+        mapped[rel] = cachePath(value);
+      });
+      setCovers(mapped);
+    });
+    return () => { active = false; };
+  }, [decodedDir, showCovers, folders]);
 
   // Cover of the folder currently being browsed (shown as a header thumbnail).
   useEffect(() => {
