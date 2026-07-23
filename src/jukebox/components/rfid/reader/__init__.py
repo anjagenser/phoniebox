@@ -69,16 +69,26 @@ class CardRemovalTimerClass(threading.Thread):
         self._logger = logger if logger is not None else logging.getLogger('jb.rfid.cardremove')
         self.trigger = threading.Event()
         self.timeout_action = on_timeout_callback
+        # Set to request the watchdog to exit (e.g. when switching to swipe mode)
+        self._cancel = threading.Event()
+
+    def stop(self):
+        """Stop the watchdog thread without running the time-out action."""
+        self._cancel.set()
+        # Wake up the blocking wait() immediately
+        self.trigger.set()
 
     def run(self):
         self._logger.debug("CardRemovalTimerClass watchdog started")
         has_timed_out = True
-        while True:
+        while not self._cancel.is_set():
             # Prevent max CPU by forced loop slow down when self.trigger.is_set() is permanently high
             time.sleep(0.2)
             # This is the actual timer:
             # self.trigger.wait() aborts immediately when trigger.is_set becomes True
             self.trigger.wait(1)
+            if self._cancel.is_set():
+                break
             if self.trigger.is_set():
                 has_timed_out = False
             else:
@@ -86,6 +96,7 @@ class CardRemovalTimerClass(threading.Thread):
                     self.timeout_action()
                 # Save that we have timed out before, so time-out event handler is run only on the first time out
                 has_timed_out = True
+        self._logger.debug("CardRemovalTimerClass watchdog stopped")
 
 
 class ReaderRunner(threading.Thread):
@@ -121,18 +132,56 @@ class ReaderRunner(threading.Thread):
             self._cfg_place_not_swipe = False
         self._timer_thread = None
         if self._cfg_place_not_swipe:
-            self._timer_thread = CardRemovalTimerClass(utils.bind_rpc_command(self._default_removal_action, dereference=False,
-                                                                              logger=self._logger))
-            self._timer_thread.daemon = True
-            self._timer_thread.name = f"{reader_cfg_key}CRemover"
-            self._timer_thread.start()
+            self._start_removal_timer()
         self.publisher = None
         self.topic = f"{plugs.loaded_as(__name__)}.card_id"
         # Ready to go
         self._cancel = threading.Event()
 
+    def _start_removal_timer(self):
+        """Create and start the card-removal watchdog for place-not-swipe mode."""
+        self._timer_thread = CardRemovalTimerClass(
+            utils.bind_rpc_command(self._default_removal_action, dereference=False, logger=self._logger))
+        self._timer_thread.daemon = True
+        self._timer_thread.name = f"{self._reader_cfg_key}CRemover"
+        self._timer_thread.start()
+
+    def is_place_not_swipe(self) -> bool:
+        """Return True if this reader is in place-and-remove mode."""
+        return bool(self._cfg_place_not_swipe)
+
+    def has_removal_action(self) -> bool:
+        """Return True if a card removal action is available for this reader."""
+        return self._default_removal_action is not None
+
+    def set_place_not_swipe(self, enabled: bool):
+        """Switch this reader between place-and-remove and swipe mode at runtime.
+
+        In place-and-remove mode a card removal watchdog is running and triggers
+        the removal action (e.g. pause). In swipe mode the watchdog is stopped so
+        playback continues after the card is removed. If no removal action was
+        configured, a sensible default (``pause``) is created when enabling.
+        """
+        enabled = bool(enabled)
+        if enabled:
+            if self._default_removal_action is None:
+                self._logger.info(f"[{self._reader_cfg_key}] No card removal action configured; "
+                                  "defaulting to 'pause'")
+                self._default_removal_action = utils.decode_rpc_command({'alias': 'pause'}, self._logger)
+                cfg_rfid.setn('rfid', 'readers', self._reader_cfg_key, 'place_not_swipe',
+                              'card_removal_action', value={'alias': 'pause'})
+            if self._timer_thread is None:
+                self._start_removal_timer()
+        else:
+            if self._timer_thread is not None:
+                self._timer_thread.stop()
+                self._timer_thread = None
+        self._cfg_place_not_swipe = enabled
+
     def stop(self):
         self._cancel.set()
+        if self._timer_thread is not None:
+            self._timer_thread.stop()
         self._reader.stop()
 
     def run(self):  # noqa: C901
@@ -160,6 +209,10 @@ class ReaderRunner(threading.Thread):
             for card_id in reader:
                 if self._cancel.is_set():
                     break
+                # Snapshot the removal timer once per iteration. It can be swapped
+                # out from another thread when the reading mode is changed at
+                # runtime; using a local reference keeps this loop race-free.
+                timer_thread = self._timer_thread
                 if card_id:
                     # (1) Re-Trigger the timer, to detect card removal
                     # But: don't trigger the timer just yet if it is a new card id
@@ -168,8 +221,8 @@ class ReaderRunner(threading.Thread):
                     # These non-removal actions card can also be placed on the reader. Meaning that only
                     # on first read-out card_id != previous_id. For further iterations, the
                     # validity state needs to be saved in valid_for_removal_action
-                    if valid_for_removal_action and self._timer_thread is not None and card_id == previous_id:
-                        self._timer_thread.trigger.set()
+                    if valid_for_removal_action and timer_thread is not None and card_id == previous_id:
+                        timer_thread.trigger.set()
                     if card_id != previous_id or (time.time() - previous_time) >= self._cfg_same_id_delay:
                         # (2) Log this: do this first to provide log entry in case something does not run through
                         self._logger.info(f"Received card id = '{card_id}'")
@@ -199,13 +252,13 @@ class ReaderRunner(threading.Thread):
                                     # This very neatly allows (without overhead) that the card can trigger the command again
                                     # without waiting for same_id_delay
                                     previous_id = ''
-                                elif self._timer_thread is not None:
+                                elif timer_thread is not None:
                                     # Only activate removal action if ignore_same_id_delay is False
                                     # Reason: There is no use case for a card with fast-repeat action (e.g. volume incr)
                                     # and common card removal action. Disallow that to card config a little easier
                                     valid_for_removal_action = not card_entry.get('ignore_card_removal_action', False)
                                     if valid_for_removal_action:
-                                        self._timer_thread.trigger.set()
+                                        timer_thread.trigger.set()
 
                                 # (7) Finally trigger action
                                 #     Option A) plugs.call_ignore_errors(): it is thread safe but blocks, there is no Queue!
@@ -231,10 +284,47 @@ class ReaderRunner(threading.Thread):
                     pass
                 # Slow down the card reading while loop in case card is placed permanently on reader
                 self._cancel.wait(timeout=0.2)
-                if self._timer_thread is not None:
-                    self._timer_thread.trigger.clear()
+                if timer_thread is not None:
+                    timer_thread.trigger.clear()
 
         self._logger.debug("Stop listening!")
+
+
+@plugs.register
+def get_card_reading_mode():
+    """Return the card reading mode shared across all readers.
+
+    :return: ``{'place_not_swipe': bool, 'removal_action_available': bool}``
+
+    ``place_not_swipe`` is ``True`` for *place and remove* mode (playback stops
+    when the card is removed) and ``False`` for *swipe* mode (playback continues
+    after removal). ``removal_action_available`` indicates whether a card removal
+    action exists (or can be defaulted) so the mode can be switched on.
+    """
+    if not _READERS:
+        return {'place_not_swipe': False, 'removal_action_available': False}
+    # place_not_swipe is considered active only if all readers are in that mode
+    place_not_swipe = all(runner.is_place_not_swipe() for runner in _READERS.values())
+    # A default removal action ('pause') is created on demand, so the mode can
+    # always be switched on regardless of the current configuration.
+    return {'place_not_swipe': place_not_swipe, 'removal_action_available': True}
+
+
+@plugs.register
+def set_card_reading_mode(place_not_swipe: bool):
+    """Set the card reading mode for all readers and persist it.
+
+    :param place_not_swipe: ``True`` for *place and remove* mode, ``False`` for
+        *swipe* mode.
+    """
+    place_not_swipe = bool(place_not_swipe)
+    for reader_cfg_key, runner in _READERS.items():
+        runner.set_place_not_swipe(place_not_swipe)
+        cfg_rfid.setn('rfid', 'readers', reader_cfg_key, 'place_not_swipe', 'enabled',
+                      value=place_not_swipe)
+    cfg_rfid.save(only_if_changed=True)
+    log.info(f"Card reading mode set to {'place-and-remove' if place_not_swipe else 'swipe'}")
+    return get_card_reading_mode()
 
 
 @plugs.finalize

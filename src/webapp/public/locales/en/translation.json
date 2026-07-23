@@ -314,6 +314,16 @@
       "status-active": "Active now",
       "status-fading": "Fading out"
     },
+    "cardmode": {
+      "title": "Card reading mode",
+      "description": "How the box reacts to a card on the reader",
+      "place-title": "Place and remove",
+      "place-description": "Playback starts when a card is placed on the reader and stops when it is removed.",
+      "swipe-title": "Swipe",
+      "swipe-description": "Every touch of a card is read as a swipe and playback continues after the card is removed.",
+      "saved": "Card reading mode saved",
+      "load-error": "Card reading mode could not be loaded."
+    },
     "secondswipe": {
       "title": "Second Swipe",
       "description": "What happens when the same card is swiped while already playing",

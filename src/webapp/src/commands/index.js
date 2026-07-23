@@ -390,6 +390,17 @@ const commands = {
     argKeys: ['name'],
   },
 
+  getCardReadingMode: {
+    _package: 'rfid',
+    plugin: 'get_card_reading_mode',
+  },
+
+  setCardReadingMode: {
+    _package: 'rfid',
+    plugin: 'set_card_reading_mode',
+    argKeys: ['place_not_swipe'],
+  },
+
   getSecondSwipeOption: {
     _package: 'player',
     plugin: 'ctrl',

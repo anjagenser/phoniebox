@@ -314,6 +314,16 @@
       "status-active": "Jetzt aktiv",
       "status-fading": "Wird ausgeblendet"
     },
+    "cardmode": {
+      "title": "Karten-Lesemodus",
+      "description": "Wie die Box auf eine Karte auf dem Leser reagiert",
+      "place-title": "Auflegen und Entfernen",
+      "place-description": "Die Wiedergabe startet, wenn eine Karte aufgelegt wird, und stoppt, sobald sie entfernt wird.",
+      "swipe-title": "Auflegen (Swipe)",
+      "swipe-description": "Jeder Kontakt einer Karte wird als Swipe gelesen und die Wiedergabe läuft nach dem Entfernen weiter.",
+      "saved": "Karten-Lesemodus gespeichert",
+      "load-error": "Der Karten-Lesemodus konnte nicht geladen werden."
+    },
     "secondswipe": {
       "title": "Erneute Aktivierung (Second Swipe)",
       "description": "Aktion, wenn dieselbe Karte während der Wiedergabe erneut aktiviert wird",
