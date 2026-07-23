@@ -132,6 +132,11 @@ class CoverartCacheManager:
             logger.error(f"Error reading MP3 file {mp3_file_path}: {e}")
             return (NO_COVER_ART_EXTENSION, b'')
 
+        # An MP3 without any ID3 tags has ``tags is None``; fall through to the
+        # filesystem cover.* lookup instead of raising.
+        if not audio_file.tags:
+            return (NO_COVER_ART_EXTENSION, b'')
+
         for tag in audio_file.tags.values():
             if isinstance(tag, APIC):
                 if tag.mime and tag.data:
