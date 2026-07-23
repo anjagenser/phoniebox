@@ -23,6 +23,17 @@ i18n
     interpolation: {
       escapeValue: false, // not needed for react as it escapes by default
     },
+    backend: {
+      // Translations are served from a fixed URL, so browsers (and the kiosk
+      // Chromium) heuristically cache translation.json and keep showing stale
+      // strings after new keys are added — raw keys like "settings.xxx" appear.
+      // Force a conditional request every load so the ETag revalidates and any
+      // updated keys are picked up immediately (304 when unchanged, so cheap).
+      loadPath: '/locales/{{lng}}/{{ns}}.json',
+      requestOptions: {
+        cache: 'no-cache',
+      },
+    },
   });
 
 export default i18n;
