@@ -124,6 +124,56 @@ def restart_service():
     return msg
 
 
+@plugin.register
+def restart_mopidy():
+    """Restart the Mopidy audio backend (systemd user service)"""
+    ret = subprocess.run('(sleep 1; systemctl --user restart mopidy.service) &', shell=True, capture_output=False,
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False,
+                         stdin=subprocess.DEVNULL)
+    msg = 'Restart Mopidy request dispatched successfully to host'
+    if ret.returncode != 0:
+        msg = f"Error in restarting Mopidy: {ret.stdout}"
+    logger.info(msg)
+    return msg
+
+
+def _service_active_state(name, user=True):
+    """Return the ActiveState of a systemd unit ('active'/'inactive'/'failed'),
+    or 'not-found' if the unit does not exist on this host."""
+    scope = ['--user'] if user else []
+    ret = subprocess.run(['systemctl', *scope, 'show', name, '--property', 'LoadState,ActiveState', '--value'],
+                         stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=False,
+                         stdin=subprocess.DEVNULL)
+    if ret.returncode != 0:
+        return 'not-found'
+    try:
+        lines = ret.stdout.decode().strip().splitlines()
+    except Exception as e:
+        logger.error(f"{e.__class__.__name__}: {e}")
+        return 'unknown'
+    load_state = lines[0].strip() if len(lines) > 0 else ''
+    active_state = lines[1].strip() if len(lines) > 1 else ''
+    if load_state == 'not-found':
+        return 'not-found'
+    return active_state or 'unknown'
+
+
+@plugin.register
+def get_services_status():
+    """Return the up/running status of the critical services.
+
+    :return: Dict mapping a service label to its systemd ActiveState
+        (``'active'``, ``'inactive'``, ``'failed'``) or ``'not-found'`` when the
+        unit is not installed (e.g. MPD on a Mopidy box).
+    """
+    return {
+        'mopidy': _service_active_state('mopidy.service', user=True),
+        'jukebox-daemon': _service_active_state('jukebox-daemon.service', user=True),
+        'mpd': _service_active_state('mpd.service', user=True),
+        'nginx': _service_active_state('nginx.service', user=False),
+    }
+
+
 @plugin.register()
 def get_disk_usage(path='/'):
     """Return the disk usage in Megabytes as dictionary for RPC export"""

@@ -84,6 +84,7 @@ sudo -u mpd speaker-test -t wav -c 2
 import os
 import re
 import json
+import shutil
 import subprocess
 import urllib.parse
 import urllib.request
@@ -975,6 +976,108 @@ class PlayerMPD:
         plc = playlistgenerator.PlaylistCollector(components.player.get_music_library_path())
         plc.get_directory_content(folder)
         return plc.playlist
+
+    def _safe_library_path(self, rel_path: str) -> str:
+        """Resolve a library-relative path to an absolute path inside the music library.
+
+        Guards against traversal (``..``/symlinks/absolute paths) the same way the
+        fileserver does, so file-management RPCs can never touch anything outside
+        the music library. Returns the resolved absolute path.
+
+        :param rel_path: Path relative to the music library root
+        :raises ValueError: if the path escapes the music library
+        """
+        base = os.path.realpath(components.player.get_music_library_path())
+        target = os.path.realpath(os.path.join(base, rel_path or ''))
+        if target != base and not target.startswith(base + os.sep):
+            raise ValueError(f"Path '{rel_path}' is outside the music library")
+        return target
+
+    @plugs.tag
+    def rename_path(self, rel_path: str, new_name: str) -> str:
+        """Rename a file or folder within its parent directory.
+
+        :param rel_path: Path (relative to the music library) of the item to rename
+        :param new_name: New base name (must not contain a path separator)
+        :return: The new path relative to the music library
+        """
+        if not new_name or '/' in new_name or '\\' in new_name or new_name in ('.', '..'):
+            raise ValueError(f"Invalid new name: '{new_name}'")
+        src = self._safe_library_path(rel_path)
+        if not os.path.exists(src):
+            raise FileNotFoundError(f"'{rel_path}' does not exist")
+        dst = self._safe_library_path(os.path.join(os.path.dirname(rel_path), new_name))
+        if os.path.exists(dst):
+            raise FileExistsError(f"'{new_name}' already exists")
+        os.rename(src, dst)
+        logger.info(f"Renamed '{rel_path}' to '{new_name}'")
+        self.update_wait()
+        base = os.path.realpath(components.player.get_music_library_path())
+        return os.path.relpath(dst, base)
+
+    @plugs.tag
+    def move_path(self, rel_path: str, dest_folder: str) -> str:
+        """Move a file or folder into another folder of the music library.
+
+        :param rel_path: Path (relative to the music library) of the item to move
+        :param dest_folder: Destination folder relative to the music library
+            (empty string / ``'./'`` moves to the library root)
+        :return: The new path relative to the music library
+        """
+        src = self._safe_library_path(rel_path)
+        if not os.path.exists(src):
+            raise FileNotFoundError(f"'{rel_path}' does not exist")
+        dest_dir = self._safe_library_path(dest_folder)
+        if not os.path.isdir(dest_dir):
+            raise NotADirectoryError(f"Destination '{dest_folder}' is not a folder")
+        dst = os.path.join(dest_dir, os.path.basename(src))
+        if os.path.realpath(dst) == src:
+            raise ValueError("Source and destination are the same")
+        if os.path.exists(dst):
+            raise FileExistsError(f"'{os.path.basename(src)}' already exists in the destination")
+        shutil.move(src, dst)
+        logger.info(f"Moved '{rel_path}' to '{dest_folder}'")
+        self.update_wait()
+        base = os.path.realpath(components.player.get_music_library_path())
+        return os.path.relpath(dst, base)
+
+    @plugs.tag
+    def delete_path(self, rel_path: str) -> None:
+        """Delete a file, or a folder and all of its contents.
+
+        :param rel_path: Path (relative to the music library) of the item to delete
+        """
+        target = self._safe_library_path(rel_path)
+        base = os.path.realpath(components.player.get_music_library_path())
+        if target == base:
+            raise ValueError("Refusing to delete the music library root")
+        if not os.path.exists(target):
+            raise FileNotFoundError(f"'{rel_path}' does not exist")
+        if os.path.isdir(target):
+            shutil.rmtree(target)
+        else:
+            os.remove(target)
+        logger.info(f"Deleted '{rel_path}'")
+        self.update_wait()
+
+    @plugs.tag
+    def create_folder(self, parent: str, name: str) -> str:
+        """Create a new (sub)folder in the music library.
+
+        :param parent: Parent folder relative to the music library
+            (empty string / ``'./'`` creates it at the library root)
+        :param name: Name of the new folder (must not contain a path separator)
+        :return: The new folder path relative to the music library
+        """
+        if not name or '/' in name or '\\' in name or name in ('.', '..'):
+            raise ValueError(f"Invalid folder name: '{name}'")
+        new_dir = self._safe_library_path(os.path.join(parent or '', name))
+        if os.path.exists(new_dir):
+            raise FileExistsError(f"'{name}' already exists")
+        os.makedirs(new_dir)
+        logger.info(f"Created folder '{name}' in '{parent}'")
+        base = os.path.realpath(components.player.get_music_library_path())
+        return os.path.relpath(new_dir, base)
 
     @plugs.tag
     def get_folder_config(self, folder: str) -> dict:
