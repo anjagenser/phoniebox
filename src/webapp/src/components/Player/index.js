@@ -11,6 +11,7 @@ import Volume from './volume';
 import AppSettingsContext from '../../context/appsettings/context';
 import PlayerContext from '../../context/player/context';
 import request from '../../utils/request';
+import { NAV_HEIGHT, SAFE_AREA_BOTTOM } from './mini-player';
 
 const Player = () => {
   const { state: { playerstatus } } = useContext(PlayerContext);
@@ -57,7 +58,14 @@ const Player = () => {
           paddingTop: '30px',
           paddingLeft: '30px',
           paddingRight: '30px',
-          minHeight: 'calc(100vh - 64px - 10px)',
+          // Fill the scroll pane's visible area without exceeding it. Use dvh
+          // (the small viewport, excluding the mobile browser's dynamic toolbar)
+          // and reserve only the fixed bottom navigation — there is no top app
+          // bar. A raw 100vh here overflowed the pane and forced scrolling.
+          minHeight: `calc(100vh - ${NAV_HEIGHT}px - ${SAFE_AREA_BOTTOM})`,
+          '@supports (height: 100dvh)': {
+            minHeight: `calc(100dvh - ${NAV_HEIGHT}px - ${SAFE_AREA_BOTTOM})`,
+          },
           backdropFilter: 'blur(25px)',
         }}
       >
