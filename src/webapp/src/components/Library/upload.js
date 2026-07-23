@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import Alert from '@mui/material/Alert';
@@ -30,7 +30,6 @@ const Upload = () => {
   const { t } = useTranslation();
   const theme = useTheme();
   const fileInputRef = useRef(null);
-  const folderInputRef = useRef(null);
 
   const [open, setOpen] = useState(false);
   const [files, setFiles] = useState([]);
@@ -39,16 +38,18 @@ const Upload = () => {
   const [uploading, setUploading] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
-  // webkitdirectory / directory are non-standard attributes that React strips
-  // from the rendered element, so set them on the DOM node directly to turn the
-  // hidden input into a folder picker.
-  useEffect(() => {
-    const input = folderInputRef.current;
-    if (input) {
-      input.setAttribute('webkitdirectory', '');
-      input.setAttribute('directory', '');
+  // webkitdirectory / directory / mozdirectory are non-standard attributes that
+  // React drops from JSX, so set them on the DOM node the moment it mounts to
+  // turn this hidden input into a folder picker. A ref callback runs during the
+  // commit (before any user click), unlike an effect which can fire after the
+  // input is already interactive.
+  const folderInputRef = (node) => {
+    if (node) {
+      node.setAttribute('webkitdirectory', '');
+      node.setAttribute('directory', '');
+      node.setAttribute('mozdirectory', '');
     }
-  }, [open]);
+  };
 
   const handleOpen = () => {
     setFiles([]);
