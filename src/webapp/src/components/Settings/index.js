@@ -10,8 +10,11 @@ import SettingsCardBackup from './cardbackup/index';
 import SettingsCardMode from './cardmode/index';
 import SettingsCoverArt from './coverart';
 import SettingsGeneral from './general';
+import SettingsLibraryScan from './library-scan';
+import SettingsLogLevel from './log-level';
 import SettingsQuietHours from './quiethours/index';
 import SettingsSecondSwipe from './secondswipe';
+import SettingsServiceRestart from './service-restart';
 import SettingsStatus from './status/index';
 import SettingsTimers from './timers/index';
 import SystemControls from './systemcontrols';
@@ -26,7 +29,8 @@ const SECTIONS = [
   { key: 'cards', items: [SettingsCardBackup] },
   { key: 'schedule', items: [SettingsTimers, SettingsQuietHours] },
   { key: 'network', items: [SettingsBluetooth, SettingsAutoHotspot] },
-  { key: 'system', items: [SystemControls, SettingsCoverArt] },
+  { key: 'maintenance', items: [SettingsLibraryScan, SettingsCoverArt, SettingsServiceRestart, SettingsLogLevel] },
+  { key: 'system', items: [SystemControls] },
 ];
 
 const Settings = () => {

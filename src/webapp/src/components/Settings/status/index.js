@@ -15,6 +15,7 @@ import StatusCpuTemp from './cpu-temp';
 import StatusDiskUsage from './disk-usage';
 import StatusIpAddress from './ip-address';
 import StatusLogs from './logs';
+import StatusServices from './services';
 import StatusVersion from './version';
 
 const SettingsStatus = () => {
@@ -29,6 +30,7 @@ const SettingsStatus = () => {
           <Grid item xs={12}>
             <List>
               <StatusVersion />
+              <StatusServices />
               <StatusBattery />
               <StatusDiskUsage />
               <StatusIpAddress />
