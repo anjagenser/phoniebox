@@ -43,71 +43,131 @@ const initSockets = ({ setState, events }) => {
   socketEvents({ setState, events });
 };
 
-// Reject a request that never receives a reply, so callers don't hang forever.
+// --- Request/Reply transport -----------------------------------------------
+//
+// The backend RPC server is a single ZMQ REP socket that processes one request
+// at a time. Rather than open a fresh WebSocket per request (connection churn
+// that floods the browser and stalls under bursts), we keep ONE persistent Req
+// socket and serialise requests through a FIFO queue — which is exactly what a
+// REQ/REP pair requires (one outstanding request at a time) and matches the
+// server's single-threaded nature. A two-level queue lets interactive/critical
+// calls jump ahead of best-effort cover-art loading. If a request never gets a
+// reply it times out and the socket is recreated, so one stuck call cannot wedge
+// the whole queue.
+
 const REQUEST_TIMEOUT_MS = 15000;
 
-// Each request gets its own short-lived Req socket. The backend is a single ZMQ
-// REP socket that fair-queues across peers, so concurrent requests each get their
-// own socket and reply correctly. Using a local socket (instead of a shared
-// property) avoids concurrent callers clobbering each other's connection, and the
-// socket is always closed once the request settles (success, error or timeout).
-const socketRequest = (_package, plugin, method, kwargs) => (
-  new Promise((resolve, reject) => {
-    const requestId = uuidv4();
-    const server = new zmq.Req();
+let reqSocket = null;
+let current = null; // { id, resolve, reject, timer, target }
+const highQueue = [];
+const lowQueue = [];
 
-    let settled = false;
-    let timer = null;
+const attachSocket = () => {
+  const socket = new zmq.Req();
 
-    const settle = (fn, value) => {
-      if (settled) return;
-      settled = true;
-      if (timer) clearTimeout(timer);
-      try {
-        server.close();
-      } catch (e) {
-        // ignore close errors on an already-torn-down socket
-      }
-      fn(value);
-    };
+  socket.on('message', (msg) => {
+    // Ignore late replies delivered to a socket we have since replaced.
+    if (socket !== reqSocket || !current) return;
 
-    server.on('message', (msg) => {
-      const { id, error, result } = decodeMessage(msg);
-
-      if (error && error.message) {
-        return settle(reject, error.message);
-      }
-
-      if (id && id === requestId) {
-        return settle(resolve, result);
-      }
-
-      return settle(reject, 'Received socket message ID does not match sender ID.');
-    });
-
-    server.onerror = (err) => settle(reject, err);
-
-    timer = setTimeout(() => {
-      const target = `${_package}.${plugin}${method ? `.${method}` : ''}`;
-      settle(reject, new Error(`Request '${target}' timed out`));
-    }, REQUEST_TIMEOUT_MS);
-
+    let decoded;
     try {
-      server.connect(REQRES_ENDPOINT);
+      decoded = decodeMessage(msg);
+    } catch (e) {
+      return;
     }
-    catch (error) {
-      console.error(`WebSocket connection to '${REQRES_ENDPOINT}' failed: `, error);
-      return settle(reject, error);
-    }
+    const { id, error, result } = decoded;
+    const cur = current;
 
-    const payload = preparePayload(
-      requestId,
-      _package,
-      plugin,
-      method,
-      kwargs,
-    );
-    server.send(encodeMessage(payload));
+    if (error && error.message) {
+      return settle(() => cur.reject(new Error(error.message)));
+    }
+    if (id && id === cur.id) {
+      return settle(() => cur.resolve(result));
+    }
+    // Unexpected id — reject and resync by recreating the socket.
+    return settle(() => cur.reject(new Error('Received socket message ID does not match sender ID.')), true);
+  });
+
+  socket.onerror = (err) => {
+    if (socket !== reqSocket) return;
+    if (current) {
+      const cur = current;
+      settle(() => cur.reject(err), true);
+    } else {
+      recreateSocket();
+    }
+  };
+
+  try {
+    socket.connect(REQRES_ENDPOINT);
+  } catch (e) {
+    console.error(`WebSocket connection to '${REQRES_ENDPOINT}' failed: `, e);
+  }
+  return socket;
+};
+
+const ensureSocket = () => {
+  if (!reqSocket) reqSocket = attachSocket();
+  return reqSocket;
+};
+
+const recreateSocket = () => {
+  const old = reqSocket;
+  reqSocket = null;
+  if (old) {
+    try { old.close(); } catch (e) { /* already torn down */ }
+  }
+  reqSocket = attachSocket();
+};
+
+// Finish the in-flight request, optionally recreating the (now unusable) socket,
+// then start the next queued request.
+const settle = (fn, recreate = false) => {
+  if (!current) return;
+  const cur = current;
+  current = null;
+  if (cur.timer) clearTimeout(cur.timer);
+  if (recreate) recreateSocket();
+  try { fn(); } catch (e) { /* consumer callback error */ }
+  pump();
+};
+
+const pump = () => {
+  if (current) return;
+  const next = highQueue.shift() || lowQueue.shift();
+  if (!next) return;
+
+  const id = uuidv4();
+  current = {
+    id,
+    resolve: next.resolve,
+    reject: next.reject,
+    target: next.target,
+    timer: null,
+  };
+  current.timer = setTimeout(() => {
+    if (!current || current.id !== id) return;
+    const cur = current;
+    // The REQ socket sent but never received a reply, so it is stuck awaiting
+    // recv — recreate it so the queue can proceed.
+    settle(() => cur.reject(new Error(`Request '${cur.target}' timed out`)), true);
+  }, REQUEST_TIMEOUT_MS);
+
+  const socket = ensureSocket();
+  const payload = preparePayload(id, next._package, next.plugin, next.method, next.kwargs);
+  try {
+    socket.send(encodeMessage(payload));
+  } catch (e) {
+    settle(() => next.reject(e), true);
+  }
+};
+
+const socketRequest = (_package, plugin, method, kwargs, lowPriority = false) => (
+  new Promise((resolve, reject) => {
+    const target = `${_package}.${plugin}${method ? `.${method}` : ''}`;
+    const item = { _package, plugin, method, kwargs, resolve, reject, target };
+    (lowPriority ? lowQueue : highQueue).push(item);
+    pump();
   })
 );
 
