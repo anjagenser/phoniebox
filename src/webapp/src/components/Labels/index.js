@@ -38,6 +38,7 @@ const Labels = () => {
   const [labels, setLabels] = useState([]);
   const [fit, setFit] = useState('cover');
   const [showCaptions, setShowCaptions] = useState(false);
+  const [rotation, setRotation] = useState(0);
   const [startOffset, setStartOffset] = useState(0);
   const [offsetX, setOffsetX] = useState(0);
   const [offsetY, setOffsetY] = useState(0);
@@ -52,16 +53,29 @@ const Labels = () => {
   }, [labels]);
 
   const addCard = (labelData) =>
-    setLabels((prev) => [...prev, { uid: uuidv4(), ...labelData }]);
+    setLabels((prev) => [...prev, { uid: uuidv4(), rotation, ...labelData }]);
 
   const addImages = (images) =>
     setLabels((prev) => [
       ...prev,
-      ...images.map((image) => ({ uid: uuidv4(), ...image })),
+      ...images.map((image) => ({ uid: uuidv4(), rotation, ...image })),
     ]);
 
   const removeLabel = (index) =>
     setLabels((prev) => prev.filter((_, i) => i !== index));
+
+  // Turn a single label a further 90 degrees clockwise.
+  const rotateLabel = (index) =>
+    setLabels((prev) => prev.map((label, i) => (
+      i === index ? { ...label, rotation: ((label.rotation || 0) + 90) % 360 } : label
+    )));
+
+  // The Rotation control sets the default for new labels and re-applies to all
+  // existing ones, so "turn the labels by 90 degrees" is a single action.
+  const changeRotation = (value) => {
+    setRotation(value);
+    setLabels((prev) => prev.map((label) => ({ ...label, rotation: value })));
+  };
 
   const clearAll = () => setLabels([]);
 
@@ -98,7 +112,7 @@ const Labels = () => {
 
         {/* Options */}
         <Grid container spacing={1} alignItems="center" sx={{ mb: 1 }}>
-          <Grid item xs={12} sm={6}>
+          <Grid item xs={12}>
             <FormControlLabel
               control={(
                 <Switch
@@ -109,7 +123,22 @@ const Labels = () => {
               label={t('labels.options.captions')}
             />
           </Grid>
-          <Grid item xs={6} sm={3}>
+          <Grid item xs={4}>
+            <FormControl fullWidth size="small">
+              <InputLabel id="labels-rotation">{t('labels.options.rotation-label')}</InputLabel>
+              <Select
+                labelId="labels-rotation"
+                label={t('labels.options.rotation-label')}
+                value={rotation}
+                onChange={(e) => changeRotation(Number(e.target.value))}
+              >
+                {[0, 90, 180, 270].map((deg) => (
+                  <MenuItem key={deg} value={deg}>{`${deg}°`}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={4}>
             <FormControl fullWidth size="small">
               <InputLabel id="labels-fit">{t('labels.options.fit-label')}</InputLabel>
               <Select
@@ -123,7 +152,7 @@ const Labels = () => {
               </Select>
             </FormControl>
           </Grid>
-          <Grid item xs={6} sm={3}>
+          <Grid item xs={4}>
             <FormControl fullWidth size="small">
               <InputLabel id="labels-start">{t('labels.options.start-label')}</InputLabel>
               <Select
@@ -212,6 +241,7 @@ const Labels = () => {
           fit={fit}
           showCaptions={showCaptions}
           onRemove={removeLabel}
+          onRotate={rotateLabel}
         />
 
         <Divider sx={{ my: 2 }} />

@@ -92,15 +92,12 @@ const drawCenteredText = (ctx, text, w, h) => {
   });
 };
 
-// Render one label to a JPEG data URL.
-const renderLabel = async (label, { fit, showCaptions }) => {
-  const canvas = document.createElement('canvas');
-  canvas.width = PX_W;
-  canvas.height = PX_H;
-  const ctx = canvas.getContext('2d');
-
+// Draw the label content (cover + optional caption) onto a canvas of the given
+// size. Used both un-rotated and, for 90/270deg turns, on a portrait canvas
+// that is then rotated into the landscape label.
+const drawContent = async (ctx, label, w, h, { fit, showCaptions }) => {
   ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, PX_W, PX_H);
+  ctx.fillRect(0, 0, w, h);
 
   let img = null;
   if (label.image) {
@@ -112,13 +109,47 @@ const renderLabel = async (label, { fit, showCaptions }) => {
   }
 
   const caption = (label.caption || '').trim();
-
   if (img) {
-    drawImageFit(ctx, img, PX_W, PX_H, fit);
-    if (showCaptions && caption) drawCaptionBand(ctx, caption, PX_W, PX_H);
+    drawImageFit(ctx, img, w, h, fit);
+    if (showCaptions && caption) drawCaptionBand(ctx, caption, w, h);
   } else if (caption) {
-    drawCenteredText(ctx, caption, PX_W, PX_H);
+    drawCenteredText(ctx, caption, w, h);
   }
+};
+
+// Render one label to a JPEG data URL, honouring label.rotation (0/90/180/270).
+// The whole content (image + caption) turns together, so a turned label reads
+// correctly when the card is physically rotated.
+export const renderLabel = async (label, { fit, showCaptions }) => {
+  const canvas = document.createElement('canvas');
+  canvas.width = PX_W;
+  canvas.height = PX_H;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, PX_W, PX_H);
+
+  const rotation = (((label.rotation || 0) % 360) + 360) % 360;
+
+  if (rotation === 0) {
+    await drawContent(ctx, label, PX_W, PX_H, { fit, showCaptions });
+    return canvas.toDataURL('image/jpeg', 0.92);
+  }
+
+  // Compose the content on its own canvas (portrait for 90/270), then blit it
+  // rotated about the centre of the landscape label.
+  const swap = rotation === 90 || rotation === 270;
+  const cw = swap ? PX_H : PX_W;
+  const ch = swap ? PX_W : PX_H;
+  const content = document.createElement('canvas');
+  content.width = cw;
+  content.height = ch;
+  await drawContent(content.getContext('2d'), label, cw, ch, { fit, showCaptions });
+
+  ctx.save();
+  ctx.translate(PX_W / 2, PX_H / 2);
+  ctx.rotate((rotation * Math.PI) / 180);
+  ctx.drawImage(content, -cw / 2, -ch / 2);
+  ctx.restore();
 
   return canvas.toDataURL('image/jpeg', 0.92);
 };

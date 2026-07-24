@@ -1,11 +1,13 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import Box from '@mui/material/Box';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import CloseIcon from '@mui/icons-material/Close';
+import Rotate90DegreesCwIcon from '@mui/icons-material/Rotate90DegreesCw';
 
+import { renderLabel } from './pdf';
 import {
   PAGE_W,
   PAGE_H,
@@ -18,102 +20,72 @@ import {
 
 const pct = (value, total) => `${(value / total) * 100}%`;
 
-// One label placed on the paper: the cover fills the slot (cover/contain), with
-// an optional dark caption band. Colours are fixed (this depicts white paper),
-// so it reads the same in the app's dark theme.
-const FilledSlot = ({ label, fit, showCaptions, onRemove, removeLabel }) => {
-  const caption = (label.caption || '').trim();
-  return (
-    <Box
+// Cache key for a rendered label thumbnail: it only depends on what the canvas
+// draws (image, caption, rotation, fit, captions on/off), not on the label's
+// position, so thumbnails survive reordering and adding/removing siblings.
+const thumbKey = (label, fit, showCaptions) =>
+  `${fit}|${showCaptions ? 1 : 0}|${label.rotation || 0}|${label.caption || ''}|${label.image || ''}`;
+
+// A label placed on the paper. The thumbnail is produced by the same canvas
+// routine used for the PDF, so the preview is exactly what prints.
+const FilledSlot = ({ thumb, onRemove, onRotate, removeLabel, rotateLabel }) => (
+  <Box sx={{ position: 'absolute', inset: 0, backgroundColor: '#fff', overflow: 'hidden' }}>
+    {thumb && (
+      <Box
+        component="img"
+        src={thumb}
+        alt=""
+        sx={{ width: '100%', height: '100%', display: 'block' }}
+      />
+    )}
+    <IconButton
+      size="small"
+      aria-label={rotateLabel}
+      title={rotateLabel}
+      onClick={onRotate}
       sx={{
         position: 'absolute',
-        inset: 0,
-        backgroundColor: '#fff',
-        backgroundImage: label.image ? `url(${label.image})` : 'none',
-        backgroundSize: fit === 'contain' ? 'contain' : 'cover',
-        backgroundPosition: 'center',
-        backgroundRepeat: 'no-repeat',
-        overflow: 'hidden',
+        top: 1,
+        left: 1,
+        padding: '2px',
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        color: '#fff',
+        '&:hover': { backgroundColor: 'rgba(0,0,0,0.7)' },
       }}
     >
-      {!label.image && caption && (
-        <Box
-          sx={{
-            position: 'absolute',
-            inset: 0,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            p: 0.5,
-            textAlign: 'center',
-            color: '#222',
-            fontSize: 'clamp(7px, 2.4vw, 13px)',
-            fontWeight: 600,
-            lineHeight: 1.15,
-            wordBreak: 'break-word',
-          }}
-        >
-          {caption}
-        </Box>
-      )}
-
-      {label.image && showCaptions && caption && (
-        <Box
-          sx={{
-            position: 'absolute',
-            left: 0,
-            right: 0,
-            bottom: 0,
-            height: '24%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            px: 0.5,
-            backgroundColor: 'rgba(0,0,0,0.55)',
-            color: '#fff',
-            fontSize: 'clamp(6px, 2vw, 12px)',
-            fontWeight: 600,
-            textAlign: 'center',
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-          }}
-        >
-          {caption}
-        </Box>
-      )}
-
-      <IconButton
-        size="small"
-        aria-label={removeLabel}
-        title={removeLabel}
-        onClick={onRemove}
-        sx={{
-          position: 'absolute',
-          top: 1,
-          right: 1,
-          padding: '2px',
-          backgroundColor: 'rgba(0,0,0,0.5)',
-          color: '#fff',
-          '&:hover': { backgroundColor: 'rgba(0,0,0,0.7)' },
-        }}
-      >
-        <CloseIcon sx={{ fontSize: 14 }} />
-      </IconButton>
-    </Box>
-  );
-};
+      <Rotate90DegreesCwIcon sx={{ fontSize: 14 }} />
+    </IconButton>
+    <IconButton
+      size="small"
+      aria-label={removeLabel}
+      title={removeLabel}
+      onClick={onRemove}
+      sx={{
+        position: 'absolute',
+        top: 1,
+        right: 1,
+        padding: '2px',
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        color: '#fff',
+        '&:hover': { backgroundColor: 'rgba(0,0,0,0.7)' },
+      }}
+    >
+      <CloseIcon sx={{ fontSize: 14 }} />
+    </IconButton>
+  </Box>
+);
 
 // A single A4 page with its 10 label positions drawn to scale.
 const SheetPage = ({
   pageIndex,
   labels,
+  thumbs,
   startOffset,
-  fit,
-  showCaptions,
   onRemove,
+  onRotate,
   usedLabel,
   removeLabel,
+  rotateLabel,
 }) => (
   <Box
     sx={{
@@ -167,11 +139,11 @@ const SheetPage = ({
           )}
           {label && (
             <FilledSlot
-              label={label}
-              fit={fit}
-              showCaptions={showCaptions}
+              thumb={thumbs[label.uid]}
               removeLabel={removeLabel}
+              rotateLabel={rotateLabel}
               onRemove={() => onRemove(labelIndex)}
+              onRotate={() => onRotate(labelIndex)}
             />
           )}
         </Box>
@@ -186,9 +158,33 @@ const SheetPreview = ({
   fit = 'cover',
   showCaptions = true,
   onRemove,
+  onRotate,
 }) => {
   const { t } = useTranslation();
   const pages = sheetCount(labels.length, startOffset);
+
+  const [thumbs, setThumbs] = useState({});
+  const cache = useRef(new Map());
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      const next = {};
+      for (let i = 0; i < labels.length; i += 1) {
+        const label = labels[i];
+        const key = thumbKey(label, fit, showCaptions);
+        let url = cache.current.get(key);
+        if (!url) {
+          // eslint-disable-next-line no-await-in-loop
+          url = await renderLabel(label, { fit, showCaptions });
+          cache.current.set(key, url);
+        }
+        next[label.uid] = url;
+      }
+      if (active) setThumbs(next);
+    })();
+    return () => { active = false; };
+  }, [labels, fit, showCaptions]);
 
   return (
     <Box sx={{ width: '100%', mt: 1 }}>
@@ -206,12 +202,13 @@ const SheetPreview = ({
           <SheetPage
             pageIndex={pageIndex}
             labels={labels}
+            thumbs={thumbs}
             startOffset={startOffset}
-            fit={fit}
-            showCaptions={showCaptions}
             onRemove={onRemove}
+            onRotate={onRotate}
             usedLabel={t('labels.preview.used')}
             removeLabel={t('labels.preview.remove')}
+            rotateLabel={t('labels.preview.rotate')}
           />
         </Box>
       ))}

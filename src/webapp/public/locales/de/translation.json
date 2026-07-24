@@ -184,6 +184,7 @@
     "pdf-error": "Das PDF konnte nicht erstellt werden",
     "options": {
       "captions": "Beschriftungen anzeigen",
+      "rotation-label": "Drehung",
       "fit-label": "Bildausrichtung",
       "fit": {
         "cover": "Füllen & zuschneiden",
@@ -207,7 +208,8 @@
     "preview": {
       "sheet": "Blatt {{current}} von {{total}}",
       "used": "belegt",
-      "remove": "Etikett entfernen"
+      "remove": "Etikett entfernen",
+      "rotate": "Um 90° drehen"
     }
   },
   "library": {

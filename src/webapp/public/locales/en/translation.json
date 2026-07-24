@@ -184,6 +184,7 @@
     "pdf-error": "Could not create the PDF",
     "options": {
       "captions": "Show captions",
+      "rotation-label": "Rotation",
       "fit-label": "Image fit",
       "fit": {
         "cover": "Fill & crop",
@@ -207,7 +208,8 @@
     "preview": {
       "sheet": "Sheet {{current}} of {{total}}",
       "used": "used",
-      "remove": "Remove label"
+      "remove": "Remove label",
+      "rotate": "Turn 90°"
     }
   },
   "library": {
