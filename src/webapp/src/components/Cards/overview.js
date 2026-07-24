@@ -22,7 +22,7 @@ import request from '../../utils/request';
 import { resolveCardDisplay } from './display';
 import { MINI_PLAYER_HEIGHT, NAV_HEIGHT, SAFE_AREA_BOTTOM } from '../Player/mini-player';
 
-const SORT_OPTIONS = ['id-asc', 'id-desc', 'name-asc'];
+const SORT_OPTIONS = ['id-asc', 'id-desc', 'name-asc', 'artist-asc'];
 
 const CardsOverview = () => {
   const navigate = useNavigate();
@@ -74,6 +74,8 @@ const CardsOverview = () => {
   const label = (id) =>
     details[id]?.name || data[id]?.from_alias || id;
 
+  const artistLabel = (id) => details[id]?.artist || '';
+
   const visibleEntries = useMemo(() => {
     const query = search.trim().toLowerCase();
 
@@ -86,6 +88,7 @@ const CardsOverview = () => {
         card.from_alias,
         ...((card.action && card.action.args) || []),
         details[id]?.name,
+        details[id]?.artist,
       ].filter(Boolean).join(' ').toLowerCase();
       return haystack.includes(query);
     };
@@ -94,6 +97,15 @@ const CardsOverview = () => {
       'id-asc': (a, b) => a.id.localeCompare(b.id),
       'id-desc': (a, b) => b.id.localeCompare(a.id),
       'name-asc': (a, b) => label(a.id).localeCompare(label(b.id)),
+      // Sort by artist; cards without an artist (e.g. folders) go last, then by name.
+      'artist-asc': (a, b) => {
+        const aa = artistLabel(a.id);
+        const ba = artistLabel(b.id);
+        if (!aa && !ba) return label(a.id).localeCompare(label(b.id));
+        if (!aa) return 1;
+        if (!ba) return -1;
+        return aa.localeCompare(ba) || label(a.id).localeCompare(label(b.id));
+      },
     };
 
     return entries.filter(matches).sort(sorters[sort] || sorters['id-asc']);

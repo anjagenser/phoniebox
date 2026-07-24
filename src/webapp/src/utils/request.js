@@ -13,6 +13,7 @@ const LOW_PRIORITY = new Set([
   'getAlbumCoverArt',
   'getUriDetails',
   'getUriName',
+  'getSongByUrl',
 ]);
 
 const request = async (command, kwargs = {}) => {

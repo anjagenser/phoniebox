@@ -53,6 +53,26 @@ const iconForCommand = (command) => {
 
 const isSpotify = (uri) => typeof uri === 'string' && /spotify/i.test(uri);
 
+// Colour each source chip so the kind of content is recognisable at a glance —
+// Spotify in its brand green, local/other sources in distinct palette colours.
+const sourceChipProps = (srcKey) => {
+  switch (srcKey) {
+    case 'spotify':
+      return { variant: 'filled', sx: { bgcolor: '#1DB954', color: '#000', fontWeight: 600 } };
+    case 'folder':
+      return { variant: 'filled', color: 'warning' };
+    case 'album':
+      return { variant: 'filled', color: 'secondary' };
+    case 'track':
+      return { variant: 'filled', color: 'info' };
+    case 'stream':
+      return { variant: 'filled', color: 'primary' };
+    case 'link':
+    default:
+      return { variant: 'outlined' };
+  }
+};
+
 // A short "source" label (Spotify / Stream / Folder …) shown as a chip so the
 // list makes the kind of content explicit, the same way local folders read.
 const sourceLabelKey = (command, uri) => {
@@ -84,6 +104,7 @@ const CardListItem = ({ cardId, card, detail = {}, onSelect }) => {
     : card.func;
   const primary = detail.name || fallbackDescription;
   const srcKey = sourceLabelKey(command, uri);
+  const artist = detail.artist;
 
   return (
     <ListItem button onClick={() => onSelect({ cardId, card, detail })}>
@@ -97,9 +118,14 @@ const CardListItem = ({ cardId, card, detail = {}, onSelect }) => {
         primaryTypographyProps={{ noWrap: true }}
         secondaryTypographyProps={{ component: 'div' }}
         secondary={
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mt: 0.25, minWidth: 0 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mt: 0.25, minWidth: 0, flexWrap: 'wrap' }}>
             {srcKey && (
-              <Chip size="small" variant="outlined" label={t(`cards.source.${srcKey}`)} />
+              <Chip size="small" {...sourceChipProps(srcKey)} label={t(`cards.source.${srcKey}`)} />
+            )}
+            {artist && (
+              <Typography component="span" variant="caption" color="text.primary" noWrap>
+                {artist}
+              </Typography>
             )}
             <Typography component="span" variant="caption" color="text.secondary" noWrap>
               {cardId}

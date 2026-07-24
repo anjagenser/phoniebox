@@ -815,13 +815,13 @@ class PlayerMPD:
         return self.coverart_cache_manager.cache_remote(uri, url)
 
     def _resolve_uri_details(self, uri: str):
-        """Resolve a URI to ``{'name': ..., 'image': ...}`` via Mopidy.
+        """Resolve a URI to ``{'name': ..., 'artist': ..., 'image': ...}`` via Mopidy.
 
-        The name is looked up from Spotify once and cached in-memory; the image
-        is served from the local cover-art cache (downloaded once). So a warm
-        card list makes no Spotify calls at all.
+        The name/artist are looked up from Spotify once and cached in-memory; the
+        image is served from the local cover-art cache (downloaded once). So a
+        warm card list makes no Spotify calls at all.
         """
-        empty = {'name': None, 'image': None}
+        empty = {'name': None, 'artist': None, 'image': None}
         if not uri:
             return dict(empty)
         uri = components.player.uri.normalize_uri(uri)
@@ -829,9 +829,15 @@ class PlayerMPD:
             return dict(empty)
 
         if uri in _uri_details_cache:
-            name = _uri_details_cache[uri]
+            cached = _uri_details_cache[uri]
+            # Backwards compatible with an older cache that stored just the name.
+            if isinstance(cached, dict):
+                name, artist = cached.get('name'), cached.get('artist')
+            else:
+                name, artist = cached, None
         else:
             name = None
+            artist = None
             try:
                 if ':playlist:' in uri:
                     playlist = self._mopidy_rpc('core.playlists.lookup', {'uri': uri})
@@ -842,20 +848,22 @@ class PlayerMPD:
                     tracks = (result or {}).get(uri) or []
                     if tracks:
                         track = tracks[0]
+                        artists = track.get('artists') or []
+                        artist = artists[0].get('name') if artists else None
                         if ':album:' in uri:
                             name = (track.get('album') or {}).get('name')
                         elif ':artist:' in uri:
-                            artists = track.get('artists') or []
-                            name = artists[0].get('name') if artists else None
+                            name = artist
+                            artist = None
                         else:
                             name = track.get('name')
-                _uri_details_cache[uri] = name
+                _uri_details_cache[uri] = {'name': name, 'artist': artist}
             except Exception as e:
                 logger.debug(f"_resolve_uri_details('{uri}') failed: {e.__class__.__name__}: {e}")
-                # Do not cache a failed name lookup; still try for a cached image.
-                return {'name': None, 'image': self._resolve_uri_image(uri)}
+                # Do not cache a failed lookup; still try for a cached image.
+                return {'name': None, 'artist': None, 'image': self._resolve_uri_image(uri)}
 
-        return {'name': name, 'image': self._resolve_uri_image(uri)}
+        return {'name': name, 'artist': artist, 'image': self._resolve_uri_image(uri)}
 
     @plugs.tag
     def get_uri_name(self, uri: str):

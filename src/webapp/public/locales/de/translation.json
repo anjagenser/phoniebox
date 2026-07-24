@@ -159,7 +159,8 @@
       "sort": {
         "id-asc": "Karten-ID (A–Z)",
         "id-desc": "Karten-ID (Z–A)",
-        "name-asc": "Name (A–Z)"
+        "name-asc": "Name (A–Z)",
+        "artist-asc": "Interpret (A–Z)"
       }
     },
     "register": {
