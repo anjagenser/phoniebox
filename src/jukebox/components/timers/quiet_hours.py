@@ -29,9 +29,6 @@ cfg = jukebox.cfghandler.get_handler('jukebox')
 MINUTES_PER_DAY = 24 * 60
 
 
-# ---------------------------------------------------------------------------
-# Pure time helpers (no side effects, unit-testable)
-# ---------------------------------------------------------------------------
 def parse_hhmm(value):
     """Parse a ``'HH:MM'`` string into minutes since midnight.
 
@@ -76,9 +73,6 @@ def fade_progress(now_min, start_min, fade_min):
     return None
 
 
-# ---------------------------------------------------------------------------
-# Quiet hours manager
-# ---------------------------------------------------------------------------
 class QuietHours:
     """Monitor thread that enforces the quiet-hours window and volume fade."""
 
@@ -86,12 +80,9 @@ class QuietHours:
         self.name = name
         self.poll_interval = poll_interval
         self._timer = None
-        # Volume captured when the fade ramp begins, restored after quiet hours
         self._baseline_volume = None
-        # Remember previous tick's state for edge handling (enter/leave)
         self._was_quiet = False
         self._was_fading = False
-        # Last state dict published to the web app, to avoid redundant messages
         self._last_published = None
         with cfg:
             cfg.setndefault('quiet_hours', 'enabled', value=False)
@@ -113,7 +104,6 @@ class QuietHours:
     def timer_thread(self):
         return self._timer.timer_thread if self._timer else None
 
-    # -- internal --------------------------------------------------------
     def _read_config(self):
         return {
             'enabled': bool(cfg.getn('quiet_hours', 'enabled', default=False)),
@@ -148,7 +138,6 @@ class QuietHours:
     def _evaluate(self, now_min):
         conf = self._read_config()
         if not conf['enabled']:
-            # Restore any fade we may have applied, then stay idle
             self._restore()
             return
 
@@ -198,7 +187,6 @@ class QuietHours:
         self._was_quiet = False
         self._was_fading = False
 
-    # -- RPC -------------------------------------------------------------
     @plugin.tag
     def get_config(self):
         """Return the quiet-hours configuration."""
@@ -227,7 +215,7 @@ class QuietHours:
             if fade_minutes is not None:
                 cfg.setn('quiet_hours', 'fade_minutes', value=max(0, int(fade_minutes)))
         cfg.save(only_if_changed=True)
-        # Apply immediately so toggling during the window takes effect at once
+        # Apply immediately so toggling during the window takes effect at once.
         try:
             self._evaluate(self._now_minutes())
             self._publish_state()

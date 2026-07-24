@@ -16,8 +16,6 @@ import CachedIcon from '@mui/icons-material/Cached';
 import request from '../../utils/request';
 import { emit } from '../../context/toast/events';
 
-// Maintenance action: rescan the local music library so newly added, renamed or
-// moved files are indexed by the player backend.
 const SettingsLibraryScan = () => {
   const { t } = useTranslation();
   const [busy, setBusy] = useState(false);

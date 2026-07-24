@@ -3,8 +3,7 @@ import { useCallback, useEffect, useRef,  useState } from 'react';
 import { toHHMMSS } from '../../utils/utils';
 
 const Countdown = ({ onEnd, seconds, stringEnded = undefined }) => {
-  // This is required to avoid async updates on unmounted compomemts
-  // https://github.com/facebook/react/issues/14227
+  // Guard against setState on an unmounted component (React #14227).
   const isMounted = useRef(null);
   const [time, setTime] = useState(seconds);
 

@@ -16,8 +16,6 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 import request from '../../utils/request';
 import { emit } from '../../context/toast/events';
 
-// Maintenance action: clear the cached cover art so newly added covers
-// (embedded tags or a cover.jpg placed in a folder) are picked up again.
 const SettingsCoverArt = () => {
   const { t } = useTranslation();
   const [busy, setBusy] = useState(false);

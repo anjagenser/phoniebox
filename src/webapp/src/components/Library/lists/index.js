@@ -29,8 +29,6 @@ const LibraryLists = () => {
   const [isSelecting] = useState(searchParams.get('isSelecting'));
   const [cardId] = useState(searchParams.get('cardId'));
   const [musicFilter, setMusicFilter] = useState('');
-  // When picking music for a card, hide items already assigned to a card by
-  // default; the SelectorHeader switch reveals everything.
   const [showAll, setShowAll] = useState(false);
   const [cardsList, setCardsList] = useState({});
 
@@ -41,7 +39,6 @@ const LibraryLists = () => {
     });
   }, [isSelecting]);
 
-  // Sets of media values already assigned to any card, keyed by play command.
   const assigned = useMemo(() => {
     const folders = new Set();
     const files = new Set();

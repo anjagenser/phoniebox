@@ -82,14 +82,12 @@ class CardRemovalTimerClass(threading.Thread):
         self._logger = logger if logger is not None else logging.getLogger('jb.rfid.cardremove')
         self.trigger = threading.Event()
         self.timeout_action = on_timeout_callback
-        # Set to request the watchdog to exit (e.g. when switching to swipe mode)
         self._cancel = threading.Event()
 
     def stop(self):
         """Stop the watchdog thread without running the time-out action."""
         self._cancel.set()
-        # Wake up the blocking wait() immediately
-        self.trigger.set()
+        self.trigger.set()  # wake up the blocking wait()
 
     def run(self):
         self._logger.debug("CardRemovalTimerClass watchdog started")
@@ -222,9 +220,7 @@ class ReaderRunner(threading.Thread):
             for card_id in reader:
                 if self._cancel.is_set():
                     break
-                # Snapshot the removal timer once per iteration. It can be swapped
-                # out from another thread when the reading mode is changed at
-                # runtime; using a local reference keeps this loop race-free.
+                # Local snapshot: _timer_thread may be swapped out on a mode change.
                 timer_thread = self._timer_thread
                 if card_id:
                     # (1) Re-Trigger the timer, to detect card removal
@@ -316,10 +312,7 @@ def get_card_reading_mode():
     """
     if not _READERS:
         return {'place_not_swipe': False, 'removal_action_available': False}
-    # place_not_swipe is considered active only if all readers are in that mode
     place_not_swipe = all(runner.is_place_not_swipe() for runner in _READERS.values())
-    # A default removal action ('pause') is created on demand, so the mode can
-    # always be switched on regardless of the current configuration.
     return {'place_not_swipe': place_not_swipe, 'removal_action_available': True}
 
 

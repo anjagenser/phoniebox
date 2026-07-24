@@ -38,11 +38,7 @@ const Upload = () => {
   const [uploading, setUploading] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
-  // webkitdirectory / directory / mozdirectory are non-standard attributes that
-  // React drops from JSX, so set them on the DOM node the moment it mounts to
-  // turn this hidden input into a folder picker. A ref callback runs during the
-  // commit (before any user click), unlike an effect which can fire after the
-  // input is already interactive.
+  // React drops these non-standard folder-picker attrs from JSX, so set them on the DOM node.
   const folderInputRef = (node) => {
     if (node) {
       node.setAttribute('webkitdirectory', '');
@@ -64,8 +60,6 @@ const Upload = () => {
     }
   };
 
-  // Drop OS junk / hidden entries that a folder pick would otherwise sweep in
-  // (e.g. .DS_Store, Thumbs.db, resource forks under a leading dot).
   const keepFile = (file) => {
     const name = (file.webkitRelativePath || file.name);
     return !name.split('/').some((seg) => seg.startsWith('.'))
@@ -89,8 +83,7 @@ const Upload = () => {
 
     const formData = new FormData();
     files.forEach((file) => {
-      // For a folder pick, webkitRelativePath ("My Album/track01.mp3") carries
-      // the structure so the backend recreates the album folder as-is.
+      // webkitRelativePath carries the folder structure for a folder pick.
       const name = file.webkitRelativePath || file.name;
       formData.append('files', file, name);
     });
@@ -143,8 +136,7 @@ const Upload = () => {
           onClick={handleOpen}
           sx={{
             position: 'fixed',
-            // Sit above the fixed MiniPlayer bar (which covers the lower band on
-            // every non-home page) instead of being hidden beneath it.
+            // Sit above the fixed MiniPlayer bar so it isn't hidden beneath it.
             bottom: `calc(${NAV_HEIGHT + MINI_PLAYER_HEIGHT}px + ${SAFE_AREA_BOTTOM} + ${theme.spacing(2)})`,
             right: theme.spacing(2),
             zIndex: theme.zIndex.drawer + 1,

@@ -8,7 +8,6 @@ import { SUBSCRIPTIONS } from '../../config';
 const PubSubProvider = ({ children }) => {
   const [state, setState] = useState({});
 
-  // Initialize sockets for player context
   useEffect(() => {
     initSockets({
       events: without(['playerstatus'], SUBSCRIPTIONS),
@@ -20,9 +19,6 @@ const PubSubProvider = ({ children }) => {
     setState,
     state,
   };
-
-  // Should be called <PlayerFunctions.Provider />
-  // and `state` should be moved to PlayerStatus.Provider
 
   return(
       <PubSubContext.Provider value={context}>

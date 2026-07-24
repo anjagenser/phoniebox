@@ -24,8 +24,7 @@ import request from '../../../../utils/request';
 import { emit } from '../../../../context/toast/events';
 import { ROOT_DIR } from '../../../../config';
 
-// Per-item overflow menu offering Rename / Move / Delete for a library file or
-// folder. Menu interactions stop propagation so they never trigger playback.
+// Menu interactions stop propagation so they never trigger playback.
 const FolderItemActions = ({ folder, onChanged }) => {
   const { t } = useTranslation();
   const { type, name, relpath } = folder;
@@ -120,7 +119,6 @@ const FolderItemActions = ({ folder, onChanged }) => {
         </MenuItem>
       </Menu>
 
-      {/* Rename */}
       <Dialog open={dialog === 'rename'} onClose={closeDialog} onClick={stop} fullWidth>
         <DialogTitle>{t('library.actions.rename')}</DialogTitle>
         <DialogContent>
@@ -144,7 +142,6 @@ const FolderItemActions = ({ folder, onChanged }) => {
         </DialogActions>
       </Dialog>
 
-      {/* Move */}
       <Dialog open={dialog === 'move'} onClose={closeDialog} onClick={stop} fullWidth>
         <DialogTitle>{t('library.actions.move-title', { name })}</DialogTitle>
         <DialogContent>
@@ -174,7 +171,6 @@ const FolderItemActions = ({ folder, onChanged }) => {
         </DialogActions>
       </Dialog>
 
-      {/* Delete */}
       <Dialog open={dialog === 'delete'} onClose={closeDialog} onClick={stop} fullWidth>
         <DialogTitle>{t('library.actions.delete')}</DialogTitle>
         <DialogContent>

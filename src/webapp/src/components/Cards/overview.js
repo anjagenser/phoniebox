@@ -53,8 +53,6 @@ const CardsOverview = () => {
     loadCardList();
   }, []);
 
-  // Resolve names/covers for all cards once, so the list is searchable by the
-  // readable name (not just the raw URI/folder) and shows cover art.
   useEffect(() => {
     let active = true;
     const ids = Object.keys(data);
@@ -97,7 +95,6 @@ const CardsOverview = () => {
       'id-asc': (a, b) => a.id.localeCompare(b.id),
       'id-desc': (a, b) => b.id.localeCompare(a.id),
       'name-asc': (a, b) => label(a.id).localeCompare(label(b.id)),
-      // Sort by artist; cards without an artist (e.g. folders) go last, then by name.
       'artist-asc': (a, b) => {
         const aa = artistLabel(a.id);
         const ba = artistLabel(b.id);
@@ -190,8 +187,6 @@ const CardsOverview = () => {
         onClick={openRegisterCard}
         sx={{
           position: 'fixed',
-          // Sit above the fixed MiniPlayer bar (which covers the lower band on
-          // every non-home page) instead of being hidden beneath it.
           bottom: `calc(${NAV_HEIGHT + MINI_PLAYER_HEIGHT}px + ${SAFE_AREA_BOTTOM} + ${theme.spacing(2)})`,
           right: theme.spacing(2),
           zIndex: theme.zIndex.drawer + 1,

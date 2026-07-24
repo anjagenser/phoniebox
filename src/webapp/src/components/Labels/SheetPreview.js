@@ -20,14 +20,9 @@ import {
 
 const pct = (value, total) => `${(value / total) * 100}%`;
 
-// Cache key for a rendered label thumbnail: it only depends on what the canvas
-// draws (image, caption, rotation, fit, captions on/off), not on the label's
-// position, so thumbnails survive reordering and adding/removing siblings.
 const thumbKey = (label, fit, showCaptions) =>
   `${fit}|${showCaptions ? 1 : 0}|${label.rotation || 0}|${label.caption || ''}|${label.image || ''}`;
 
-// A label placed on the paper. The thumbnail is produced by the same canvas
-// routine used for the PDF, so the preview is exactly what prints.
 const FilledSlot = ({ thumb, onRemove, onRotate, removeLabel, rotateLabel }) => (
   <Box sx={{ position: 'absolute', inset: 0, backgroundColor: '#fff', overflow: 'hidden' }}>
     {thumb && (
@@ -75,7 +70,6 @@ const FilledSlot = ({ thumb, onRemove, onRotate, removeLabel, rotateLabel }) => 
   </Box>
 );
 
-// A single A4 page with its 10 label positions drawn to scale.
 const SheetPage = ({
   pageIndex,
   labels,

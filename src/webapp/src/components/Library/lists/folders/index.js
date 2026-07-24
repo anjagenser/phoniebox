@@ -63,8 +63,7 @@ const Folders = ({
 
   useEffect(() => { fetchFolderList(); }, [fetchFolderList]);
 
-  // Fetch all sub-folder covers in a single batched call (one RPC instead of one
-  // per row, which used to flood the RPC server and time out the folder listing).
+  // Batch all sub-folder covers in one RPC; per-row calls flooded the server.
   useEffect(() => {
     let active = true;
     setCovers({});
@@ -80,7 +79,6 @@ const Folders = ({
     return () => { active = false; };
   }, [decodedDir, showCovers, folders]);
 
-  // Cover of the folder currently being browsed (shown as a header thumbnail).
   useEffect(() => {
     let active = true;
     setFolderCover(null);
@@ -97,7 +95,6 @@ const Folders = ({
     return name.toLowerCase().includes(musicFilter.toLowerCase());
   };
 
-  // When picking music for a card, optionally hide items already assigned.
   const assignedFilter = (folder) => {
     if (!isSelecting || showAll || !isAssigned) return true;
     return !isAssigned(folder);
@@ -126,7 +123,6 @@ const Folders = ({
 
   return (
     <Box sx={{ width: '100%' }}>
-      {/* Header: current folder cover/name + New folder action */}
       <Box sx={{ display: 'flex', alignItems: 'center', px: 1, gap: 1 }}>
         {folderName && (
           <>
@@ -172,7 +168,6 @@ const Folders = ({
         />
       )}
 
-      {/* New folder dialog */}
       <Dialog open={newFolderOpen} onClose={() => !busy && setNewFolderOpen(false)} fullWidth>
         <DialogTitle>{t('library.actions.new-folder')}</DialogTitle>
         <DialogContent>

@@ -22,17 +22,10 @@ const AppLayout = () => {
         item xs={12}
         md={6}
         sx={{
-          // Scroll the page content INSIDE this pane rather than letting the
-          // document body scroll. On Gecko-based mobile browsers (e.g. iodé),
-          // once the folder list makes the body tall enough to scroll, the
-          // fixed bottom navigation is repositioned relative to the grown
-          // document and pushed off-screen (and scrolling does not recover it).
-          // Capping this pane to the viewport height keeps the body from
-          // scrolling, so the fixed bars stay anchored to the viewport.
+          // Cap this pane to the viewport and scroll inside it; on Gecko mobile a scrolling body pushes the fixed bottom nav off-screen.
           height: '100vh',
           '@supports (height: 100dvh)': { height: '100dvh' },
           overflowY: 'auto',
-          // Contain content width and never scroll sideways within the pane.
           overflowX: 'hidden',
           maxWidth: '100%',
           paddingBottom: isHome

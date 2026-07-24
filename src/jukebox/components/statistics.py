@@ -28,7 +28,6 @@ import jukebox.cfghandler
 logger = logging.getLogger('jb.stats')
 cfg = jukebox.cfghandler.get_handler('jukebox')
 
-#: Default location, mirrors where the player status file lives
 DEFAULT_STATISTICS_FILE = '../../shared/settings/statistics.json'
 
 
@@ -41,7 +40,6 @@ class StatisticsStore:
         self._path = None
         self._data = {'cards': {}, 'songs': {}}
 
-    # -- persistence ------------------------------------------------------
     def _resolve_path(self):
         try:
             return cfg.getn('misc', 'statistics_file', default=DEFAULT_STATISTICS_FILE)
@@ -77,7 +75,6 @@ class StatisticsStore:
         except Exception as e:
             logger.error(f"Could not write statistics file '{self._path}': {e}")
 
-    # -- counting ---------------------------------------------------------
     def count_card_swipe(self, card_id):
         """Increment the swipe counter for a card id."""
         if not card_id:
@@ -100,7 +97,6 @@ class StatisticsStore:
             entry = self._data['songs'].get(file, {'count': 0})
             entry['count'] = int(entry.get('count', 0)) + 1
             entry['last_played'] = time.time()
-            # Keep the latest known metadata for a readable display
             if title:
                 entry['title'] = title
             if artist:
@@ -110,7 +106,6 @@ class StatisticsStore:
             self._data['songs'][file] = entry
             self._save()
 
-    # -- read out ---------------------------------------------------------
     def get_statistics(self, limit=None):
         """Return sorted statistics.
 
@@ -162,5 +157,4 @@ class StatisticsStore:
             self._save()
 
 
-#: Shared singleton used by the reader, player and misc RPC functions
 stats = StatisticsStore()

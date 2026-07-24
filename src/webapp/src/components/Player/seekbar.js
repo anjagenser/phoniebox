@@ -29,22 +29,17 @@ const SeekBar = () => {
     setProgress(timeToProgress(timeTotal, newTime));
   };
 
-  // Handle seek events when sliding the progress bar
   const handleSeekToPosition = (event, newPosition) => {
     setIsSeeking(true);
     updateTimeAndProgress(progressToTime(timeTotal, newPosition));
   };
 
-  // Only send commend to backend when user committed to new position
-  // We don't send it while seeking (too many useless requests)
   const playFromNewTime = () => {
     request('seek', { new_time: timeElapsed.toFixed(3) });
     setIsSeeking(false);
   };
 
   useEffect(() => {
-    // Avoid updating time and progress when user is seeking to new
-    // song position
     if (!isSeeking) {
       updateTimeAndProgress(playerstatus?.elapsed);
     }

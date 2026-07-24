@@ -32,15 +32,13 @@ import { emit } from '../../../context/toast/events';
 const SettingsBluetooth = () => {
   const { t } = useTranslation();
   const { state: pubsubState } = useContext(PubSubContext);
-  // Active audio sink is republished on Bluetooth connect/disconnect (the volume
-  // component auto-routes to the headset), so use it to refresh device state.
+  // activeSink is republished on Bluetooth connect/disconnect; use it to refresh devices.
   const activeSink = pubsubState['volume.sink']?.active_sink;
 
   const [available, setAvailable] = useState(true);
   const [devices, setDevices] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isScanning, setIsScanning] = useState(false);
-  // MAC address currently performing a pair/connect/disconnect/remove action
   const [busyMac, setBusyMac] = useState(null);
 
   const loadDevices = useCallback(async () => {

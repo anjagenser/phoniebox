@@ -6,7 +6,6 @@ import { initSockets } from '../../sockets';
 const PlayerProvider = ({ children }) => {
   const [state, setState] = useState({});
 
-  // Initialize sockets for player context
   useEffect(() => {
     initSockets({
       events: ['playerstatus'],
@@ -18,9 +17,6 @@ const PlayerProvider = ({ children }) => {
     setState,
     state,
   };
-
-  // Should be called <PlayerFunctions.Provider />
-  // and `state` should be moved to PlayerStatus.Provider
 
   return(
       <PlayerContext.Provider value={context}>

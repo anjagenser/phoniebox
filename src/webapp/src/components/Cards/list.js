@@ -24,7 +24,6 @@ import VolumeUpIcon from '@mui/icons-material/VolumeUp';
 import { findActionByCommand } from './utils';
 import CardContentDialog from './dialogs/content';
 
-// Icon shown when no cover art is available, chosen by the card's action.
 const iconForCommand = (command) => {
   switch (command) {
     case 'play_uri':
@@ -53,8 +52,6 @@ const iconForCommand = (command) => {
 
 const isSpotify = (uri) => typeof uri === 'string' && /spotify/i.test(uri);
 
-// Colour each source chip so the kind of content is recognisable at a glance —
-// Spotify in its brand green, local/other sources in distinct palette colours.
 const sourceChipProps = (srcKey) => {
   switch (srcKey) {
     case 'spotify':
@@ -73,8 +70,6 @@ const sourceChipProps = (srcKey) => {
   }
 };
 
-// A short "source" label (Spotify / Stream / Folder …) shown as a chip so the
-// list makes the kind of content explicit, the same way local folders read.
 const sourceLabelKey = (command, uri) => {
   switch (command) {
     case 'play_uri':

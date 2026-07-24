@@ -16,7 +16,6 @@ import {
 
 import request from '../../utils/request';
 
-// Map backend alias → i18n key within 'settings.secondswipe'
 const OPTIONS = [
   { value: 'rewind', labelKey: 'restart' },
   { value: 'toggle', labelKey: 'toggle' },

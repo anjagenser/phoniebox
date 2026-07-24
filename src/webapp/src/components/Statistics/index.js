@@ -30,13 +30,10 @@ import Header from '../Header';
 import request from '../../utils/request';
 import { resolveCardDisplay } from '../Cards/display';
 
-// Only the top entries are interesting on a small box screen.
 const LIMIT = 20;
 
 const basename = (path) => (path ? path.split('/').pop() : '');
 
-// A single ranked row: avatar, labels, count and a proportional bar so the
-// relative popularity is readable at a glance.
 const StatRow = ({ avatar, primary, secondary, count, max }) => {
   const percent = max > 0 ? Math.round((count / max) * 100) : 0;
 
@@ -87,8 +84,6 @@ const Statistics = () => {
 
     setStats(result);
 
-    // Resolve readable names / covers for the swiped cards, reusing the same
-    // resolver the cards overview uses.
     const { result: cards } = await request('cardsList');
     const cardsMap = cards || {};
     const details = {};

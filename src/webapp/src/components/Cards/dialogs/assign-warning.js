@@ -8,9 +8,6 @@ import DialogContent from '@mui/material/DialogContent';
 import DialogContentText from '@mui/material/DialogContentText';
 import DialogTitle from '@mui/material/DialogTitle';
 
-// Confirmation dialog shown before a card assignment is saved when it would
-// either overwrite an existing action (Feature 4) or duplicate a value that is
-// already assigned to another card (Feature 5).
 const CardsAssignWarningDialog = ({ open, warnings = [], onConfirm, onCancel }) => {
   const { t } = useTranslation();
 

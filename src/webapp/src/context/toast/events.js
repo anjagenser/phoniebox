@@ -1,6 +1,3 @@
-// Singleton event bus for toast notifications.
-// Plain JS (no React) so request.js and other utilities can emit without hooks.
-
 const listeners = [];
 
 export const subscribe = (fn) => {

@@ -16,7 +16,6 @@ import { emit } from '../../context/toast/events';
 
 const LEVELS = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'];
 
-// Runtime backend log-level control (previously only settable via config/CLI).
 const SettingsLogLevel = () => {
   const { t } = useTranslation();
   const [level, setLevel] = useState('');

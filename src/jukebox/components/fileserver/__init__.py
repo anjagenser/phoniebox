@@ -202,12 +202,8 @@ class _UploadHandler(BaseHTTPRequestHandler):
         for filename, data in files:
             if not filename:
                 continue
-            # Preserve any subfolder structure carried in the filename. Folder
-            # uploads from the web UI send the browser's webkitRelativePath here
-            # (e.g. "My Album/track01.mp3", "My Album/cover.jpg"), so the whole
-            # album folder is recreated on disk in one upload. Normalise the
-            # separators, keep the path relative, and verify it resolves inside
-            # the destination before writing.
+            # filename may carry a webkitRelativePath subfolder; keep it relative
+            # and verify it resolves inside dest_dir before writing.
             rel = os.path.normpath(filename.replace('\\', '/').lstrip('/'))
             dest = os.path.join(dest_dir, rel)
             if not is_within_directory(dest_dir, dest):
@@ -224,10 +220,7 @@ class _UploadHandler(BaseHTTPRequestHandler):
                 errors.append(filename)
                 logger.error(f"Failed to save {filename}: {e}")
 
-        # Newly written files are only on disk; MPD still needs to scan them
-        # into its database, otherwise the album view (which queries MPD) stays
-        # empty even though the upload succeeded. Wait for the scan so the file
-        # is browsable by the time the client refreshes.
+        # Wait for the MPD scan so uploads are browsable when the client refreshes.
         if saved:
             plugin.call_ignore_errors('player', 'ctrl', 'update_wait')
 

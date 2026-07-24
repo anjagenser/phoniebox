@@ -33,9 +33,6 @@ const readFileAsDataUrl = (file) =>
     reader.readAsDataURL(file);
   });
 
-// Card list with cover thumbnails and an "add" button per card, plus an
-// "upload image" action for labels that are not backed by a card. Reuses the
-// existing card list RPC and the shared cover/name resolver.
 const CardPicker = ({ counts = {}, onAddCard, onAddImages }) => {
   const { t } = useTranslation();
   const fileInput = useRef(null);

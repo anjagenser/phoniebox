@@ -52,9 +52,7 @@ const Outputs = () => {
         propEq('pulse_sink_name', active_sink)
       )(sink_list);
 
-      // When the active sink can't be matched but there is only a single output
-      // available, that output is necessarily the active one: preselect it so the
-      // radio group is not left empty.
+      // With a single output, preselect it when the active sink can't be matched.
       const resolvedSinkIndex =
         activeSinkIndex === -1 && sink_list.length === 1 ? 0 : activeSinkIndex;
 
@@ -65,8 +63,6 @@ const Outputs = () => {
     fetchAudioOutputs();
   }, []);
 
-  // Keep the selected radio in sync when the active sink is republished
-  // (e.g. a Bluetooth headset connects and audio is auto-routed to it).
   useEffect(() => {
     if (publishedSink?.active_sink && sinkList.length) {
       const index = findIndex(

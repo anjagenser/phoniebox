@@ -151,7 +151,6 @@ def _services_active_state(names, user=True):
                          stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=False,
                          stdin=subprocess.DEVNULL)
     if ret.returncode != 0:
-        # Whole call failed (e.g. no user bus): report all as unknown
         return result
     try:
         blocks = ret.stdout.decode().strip().split('\n\n')
@@ -492,7 +491,5 @@ def atexit(**ignored_kwargs):
     return timer_temperature.timer_thread
 
 
-# Bluetooth headset management (pair / connect / disconnect / remove).
-# Imported for its side effect: registering its functions under the 'host'
-# plugin package. Placed at the end so the 'host' package is already set up.
+# Side-effect import: registers bluetooth functions under the 'host' package.
 from . import bluetooth  # noqa: E402,F401

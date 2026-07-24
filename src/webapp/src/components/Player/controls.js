@@ -21,10 +21,6 @@ const Controls = () => {
     state: { playerstatus },
   } = useContext(PlayerContext);
 
-  // Derive the control flags directly from the live playerstatus on every
-  // render. Deriving them here (instead of caching them in context via an
-  // effect that only runs while this home-page component is mounted) keeps the
-  // play/pause icon in sync everywhere, including the mini-player on other tabs.
   const isPlaying = playerstatus?.state === 'play';
   const songIsScheduled = !!playerstatus?.songid;
   const isShuffle = playerstatus?.random === '1';
@@ -62,7 +58,6 @@ const Controls = () => {
       justifyContent="space-evenly"
     >
 
-      {/* Shuffle */}
       <IconButton
         aria-label={labelShuffle()}
         color={isShuffle ? 'primary' : undefined}
@@ -74,7 +69,6 @@ const Controls = () => {
         <ShuffleRoundedIcon style={{ fontSize: 22 }} />
       </IconButton>
 
-      {/* Skip to previous song */}
       <IconButton
         aria-label={t('player.controls.prev_song')}
         disabled={!songIsScheduled}
@@ -86,7 +80,6 @@ const Controls = () => {
         <SkipPreviousRoundedIcon style={{ fontSize: 35 }} />
       </IconButton>
 
-      {/* Play */}
       {!isPlaying &&
         <IconButton
           aria-label={t('player.controls.play')}
@@ -99,7 +92,6 @@ const Controls = () => {
           <PlayCircleFilledRoundedIcon style={{ fontSize: 75 }} />
         </IconButton>
       }
-      {/* Pause */}
       {isPlaying &&
         <IconButton
           aria-label={t('player.controls.pause')}
@@ -112,7 +104,6 @@ const Controls = () => {
         </IconButton>
       }
 
-      {/* Skip to next song */}
       <IconButton
         aria-label={t('player.controls.next_song')}
         disabled={!songIsScheduled}
@@ -124,7 +115,6 @@ const Controls = () => {
         <SkipNextRoundedIcon style={{ fontSize: 35 }} />
       </IconButton>
 
-      {/* Repeat */}
       <IconButton
         aria-label={labelRepeat()}
         color={isRepeat ? 'primary' : undefined}

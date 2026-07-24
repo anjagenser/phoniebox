@@ -17,7 +17,6 @@ import {
 import request from '../../../utils/request';
 import { emit } from '../../../context/toast/events';
 
-// Radio value <-> backend place_not_swipe flag
 const PLACE = 'place';
 const SWIPE = 'swipe';
 

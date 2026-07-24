@@ -21,8 +21,6 @@ import SystemControls from './systemcontrols';
 
 import { useTheme } from '@mui/material/styles';
 
-// Group the settings cards into labelled sections so the page stays readable as
-// it grows. Each section renders a small overline heading followed by its cards.
 const SECTIONS = [
   { key: 'general', items: [SettingsGeneral] },
   { key: 'playback', items: [SettingsAudio, SettingsCardMode, SettingsSecondSwipe] },
@@ -46,11 +44,9 @@ const Settings = () => {
       sx={{
         '& > .MuiGrid-item': spacer,
         padding: '10px',
-        // Belt-and-suspenders: keep every child within the pane width.
         maxWidth: '100%',
       }}
     >
-      {/* Status overview stays pinned at the top, above the grouped sections. */}
       <Grid item>
         <SettingsStatus />
       </Grid>

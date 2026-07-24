@@ -40,8 +40,7 @@ export default function Navigation() {
         position: 'fixed',
         bottom: '0px',
         height: `${NAV_HEIGHT}px`,
-        // Pad the device safe area below the actions so the bar is not hidden
-        // behind the mobile home indicator / browser chrome.
+        // Pad the safe area so the bar is not hidden behind the home indicator.
         boxSizing: 'content-box',
         paddingBottom: SAFE_AREA_BOTTOM,
       }}

@@ -64,14 +64,11 @@ const Labels = () => {
   const removeLabel = (index) =>
     setLabels((prev) => prev.filter((_, i) => i !== index));
 
-  // Turn a single label a further 90 degrees clockwise.
   const rotateLabel = (index) =>
     setLabels((prev) => prev.map((label, i) => (
       i === index ? { ...label, rotation: ((label.rotation || 0) + 90) % 360 } : label
     )));
 
-  // The Rotation control sets the default for new labels and re-applies to all
-  // existing ones, so "turn the labels by 90 degrees" is a single action.
   const changeRotation = (value) => {
     setRotation(value);
     setLabels((prev) => prev.map((label) => ({ ...label, rotation: value })));
@@ -110,7 +107,6 @@ const Labels = () => {
           })}
         </Typography>
 
-        {/* Options */}
         <Grid container spacing={1} alignItems="center" sx={{ mb: 1 }}>
           <Grid item xs={12}>
             <FormControlLabel
@@ -211,7 +207,6 @@ const Labels = () => {
           </AccordionDetails>
         </Accordion>
 
-        {/* Actions */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', mb: 1 }}>
           <Button
             variant="contained"

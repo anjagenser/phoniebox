@@ -21,12 +21,7 @@ const SUBSCRIPTIONS = [
 
 const ROOT_DIR = './';
 
-// TODO: The reason why thos commands are empty objects is due to a legacy
-// situation where titles associated with those commands were stored here
-// After the intro of i18n, those titles became obsolete. Because changing
-// the data structure from object to array requires some refactoring, this
-// was not done yet to maintain functionality. It's ok to change the command
-// object keys to arrays, but some downstream methods need to change as well
+// TODO: command values are empty objects for legacy reasons; ok to refactor keys to arrays (needs downstream changes).
 const JUKEBOX_ACTIONS_MAP = {
   // Command Aliases
   // Player

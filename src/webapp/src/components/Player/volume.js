@@ -44,7 +44,6 @@ const Volume = () => {
   }
 
   useEffect(() => {
-    // Only trigger API when not dragging volume bar
     if (volume !== undefined && mute !== undefined && !isChangingVolume) {
       setVolume(volume);
       setVolumeMute(!!mute);

@@ -69,7 +69,6 @@ def finalize():
     timer_idle_shutdown = IdleShutdownTimer(package=plugin.loaded_as(__name__), idle_timeout=idle_timeout)
     plugin.register(timer_idle_shutdown, name='timer_idle_shutdown', package=plugin.loaded_as(__name__))
 
-    # Quiet Hours (block playback during a time window, fade volume beforehand)
     global quiet_hours
     poll_interval = cfg.setndefault('quiet_hours', 'poll_interval_sec', value=20)
     quiet_hours = QuietHours(name=f"{plugin.loaded_as(__name__)}.quiet_hours", poll_interval=poll_interval)

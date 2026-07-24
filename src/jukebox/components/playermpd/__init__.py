@@ -112,13 +112,8 @@ from .coverart_cache_manager import CoverartCacheManager
 logger = logging.getLogger('jb.PlayerMPD')
 cfg = jukebox.cfghandler.get_handler('jukebox')
 
-# Cache of resolved URI -> name (str|None). The name is stable per URI, so it is
-# looked up from Spotify once; the cover image is served from the file-based
-# cover-art cache instead. Together these keep a warm card list Spotify-free.
 _uri_details_cache = {}
 
-# Cache of resolved URI -> [{'name': str|None, 'artist': str|None}, ...] (track
-# listing), so the web app can show a card's Spotify content without re-querying.
 _uri_tracks_cache = {}
 
 
@@ -241,7 +236,6 @@ class PlayerMPD:
         self.mpd_status_poll_interval = 0.25
         self.mpd_lock = MpdLock(self.mpd_client, self.mpd_host, 6600)
         self.status_is_closing = False
-        # Coalescing background library rescan (see _rescan_library_async)
         self._rescan_lock = threading.Lock()
         self._rescan_running = False
         self._rescan_pending = False
@@ -260,11 +254,7 @@ class PlayerMPD:
         return self.status_thread.timer_thread
 
     def connect(self):
-        # At boot the jukebox daemon may come up before the MPD/Mopidy frontend
-        # is listening on 6600. Without retrying, a single ConnectionRefusedError
-        # aborts the whole 'player' plugin load and 'ctrl' never gets registered,
-        # leaving the library dead until a manual restart. Retry with backoff so
-        # a slow-to-start backend is tolerated.
+        # Retry with backoff: the backend may not be listening on 6600 yet at boot.
         connect_timeout = float(cfg.setndefault('playermpd', 'connect_timeout', value=30))
         deadline = time.monotonic() + connect_timeout
         attempt = 0
@@ -744,10 +734,7 @@ class PlayerMPD:
         """
         uri = components.player.uri.normalize_uri(uri)
         logger.info(f"play_uri: '{uri}'")
-        # Second-swipe handling (mirrors play_card): re-placing the same card that is
-        # already loaded runs the configured second_swipe_action (e.g. 'play' to resume
-        # from pause) instead of clearing and restarting from the beginning. With
-        # place-not-swipe this gives: place -> play, remove -> pause, place -> resume.
+        # Second-swipe handling mirrors play_card (see there for the state machine).
         with self.mpd_lock:
             is_second_swipe = self.music_player_status['player_status']['last_played_folder'] == uri
         if self.second_swipe_action is not None and is_second_swipe:
@@ -792,18 +779,15 @@ class PlayerMPD:
         again for the same URI. Returns the cache filename, ``CACHE_PENDING``
         while the first download runs, or ``None`` when there is no image.
         """
-        # Already downloaded? Serve the local copy without contacting Spotify.
         cached = self.coverart_cache_manager.lookup_remote(uri)
         if cached is not None:
             return cached or None  # '' (no-art marker) -> None
 
-        # Not cached yet: ask Mopidy for the image URL and cache it locally.
         try:
             result = self._mopidy_rpc('core.library.get_images', {'uris': [uri]})
             images = (result or {}).get(uri) or []
             if not images:
                 return None
-            # Prefer the largest image (fall back to the first if sizes missing)
             best = max(images, key=lambda i: (i.get('width') or 0) * (i.get('height') or 0))
             url = best.get('uri')
             if not url:
@@ -1036,7 +1020,6 @@ class PlayerMPD:
         base = os.path.realpath(components.player.get_music_library_path())
         dirs = []
         for root, subdirs, _files in os.walk(base):
-            # Skip hidden directories in place
             subdirs[:] = sorted(d for d in subdirs if not d.startswith('.'))
             for d in subdirs:
                 rel = os.path.relpath(os.path.join(root, d), base)

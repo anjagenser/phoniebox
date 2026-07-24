@@ -1,11 +1,3 @@
-// Client-side PDF generation for the HERMA 5028 label sheet.
-//
-// Each label is first rendered onto an off-screen canvas at print resolution
-// (cover-crop or contain-fit, plus an optional caption band). The canvas is
-// then placed onto the A4 page at the exact millimetre position of its slot.
-// Doing the image work in canvas keeps cropping, letter-boxing and captions in
-// one well-understood place and hands jsPDF a single flat image per label.
-
 import { jsPDF } from 'jspdf';
 
 import {
@@ -17,12 +9,9 @@ import {
 
 const DPI = 300;
 const MM_PER_INCH = 25.4;
-const PX_W = Math.round((LABEL_W / MM_PER_INCH) * DPI); // ~990 px
-const PX_H = Math.round((LABEL_H / MM_PER_INCH) * DPI); // ~600 px
+const PX_W = Math.round((LABEL_W / MM_PER_INCH) * DPI);
+const PX_H = Math.round((LABEL_H / MM_PER_INCH) * DPI);
 
-// Load an image URL (a /cover-cache path or an uploaded data URL) into an
-// HTMLImageElement. cover-cache images are same-origin, so the canvas is not
-// tainted and toDataURL works.
 const loadImage = (src) =>
   new Promise((resolve, reject) => {
     const img = new Image();
@@ -41,7 +30,6 @@ const drawImageFit = (ctx, img, w, h, fit) => {
   ctx.drawImage(img, (w - dw) / 2, (h - dh) / 2, dw, dh);
 };
 
-// Shrink the font until the caption fits on a single line, then draw it.
 const fitFont = (ctx, text, maxWidth, startPx, minPx) => {
   let size = startPx;
   ctx.font = `600 ${size}px Arial, Helvetica, sans-serif`;
@@ -63,7 +51,6 @@ const drawCaptionBand = (ctx, text, w, h) => {
   ctx.fillText(text, w / 2, h - bandH / 2, w * 0.92);
 };
 
-// Wrap and centre dark text on a blank label (used when there is no cover).
 const drawCenteredText = (ctx, text, w, h) => {
   const size = Math.round(h * 0.16);
   ctx.font = `600 ${size}px Arial, Helvetica, sans-serif`;
@@ -92,9 +79,6 @@ const drawCenteredText = (ctx, text, w, h) => {
   });
 };
 
-// Draw the label content (cover + optional caption) onto a canvas of the given
-// size. Used both un-rotated and, for 90/270deg turns, on a portrait canvas
-// that is then rotated into the landscape label.
 const drawContent = async (ctx, label, w, h, { fit, showCaptions }) => {
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, w, h);
@@ -117,9 +101,6 @@ const drawContent = async (ctx, label, w, h, { fit, showCaptions }) => {
   }
 };
 
-// Render one label to a JPEG data URL, honouring label.rotation (0/90/180/270).
-// The whole content (image + caption) turns together, so a turned label reads
-// correctly when the card is physically rotated.
 export const renderLabel = async (label, { fit, showCaptions }) => {
   const canvas = document.createElement('canvas');
   canvas.width = PX_W;
@@ -135,8 +116,6 @@ export const renderLabel = async (label, { fit, showCaptions }) => {
     return canvas.toDataURL('image/jpeg', 0.92);
   }
 
-  // Compose the content on its own canvas (portrait for 90/270), then blit it
-  // rotated about the centre of the landscape label.
   const swap = rotation === 90 || rotation === 270;
   const cw = swap ? PX_H : PX_W;
   const ch = swap ? PX_W : PX_H;
@@ -154,9 +133,6 @@ export const renderLabel = async (label, { fit, showCaptions }) => {
   return canvas.toDataURL('image/jpeg', 0.92);
 };
 
-// Build the PDF document (does not save it). `labels` is an ordered array of
-// { image, caption }. Options: fit ('cover'|'contain'), showCaptions,
-// startOffset (empty slots on the first sheet), offsetX/offsetY (mm calibration).
 export const buildLabelsPdf = async (labels, options = {}) => {
   const {
     fit = 'cover',
@@ -188,7 +164,6 @@ export const buildLabelsPdf = async (labels, options = {}) => {
   return doc;
 };
 
-// Build the PDF and trigger a browser download.
 export const downloadLabelsPdf = async (labels, options = {}) => {
   const doc = await buildLabelsPdf(labels, options);
   doc.save(options.filename || 'phoniebox-labels.pdf');

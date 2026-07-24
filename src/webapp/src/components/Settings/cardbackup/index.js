@@ -54,8 +54,7 @@ const SettingsCardBackup = () => {
 
   const handleFileSelected = async (event) => {
     const file = event.target.files && event.target.files[0];
-    // Reset so selecting the same file again re-triggers onChange
-    event.target.value = '';
+    event.target.value = ''; // reset so selecting the same file again re-triggers onChange
     if (!file) return;
 
     try {

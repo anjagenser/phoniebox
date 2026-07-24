@@ -30,7 +30,6 @@ function App() {
   );
 }
 
-// here app catches the suspense from page in case translations are not yet loaded
 export default function WrappedApp() {
   return (
     <Suspense fallback="Loading ...">

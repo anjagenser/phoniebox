@@ -23,7 +23,7 @@ class CoverartCacheManager:
         self.cache_folder_path = Path(coverart_cache_path).expanduser()
         self.write_queue = Queue()
         self.worker_thread = Thread(target=self.process_write_requests)
-        self.worker_thread.daemon = True  # Ensure the thread closes with the program
+        self.worker_thread.daemon = True
         self.worker_thread.start()
 
     def generate_cache_key(self, base_filename: str) -> str:
@@ -113,7 +113,7 @@ class CoverartCacheManager:
             file_extension, data = self._get_from_filesystem(mp3_file_path)
 
         cache_filename = f"{cache_key}.{file_extension}"
-        full_path = self.cache_folder_path / cache_filename  # Works due to Pathlib
+        full_path = self.cache_folder_path / cache_filename
 
         with full_path.open('wb') as file:
             file.write(data)
@@ -152,7 +152,7 @@ class CoverartCacheManager:
             if file.suffix.lower() in ['.jpg', '.jpeg', '.png']:
                 with file.open('rb') as img_file:
                     data = img_file.read()
-                    file_extension = file.suffix[1:]  # Get extension without dot
+                    file_extension = file.suffix[1:]
                     return (file_extension, data)
 
         return (NO_COVER_ART_EXTENSION, b'')

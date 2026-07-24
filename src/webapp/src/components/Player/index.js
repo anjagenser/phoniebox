@@ -58,10 +58,7 @@ const Player = () => {
           paddingTop: '30px',
           paddingLeft: '30px',
           paddingRight: '30px',
-          // Fill the scroll pane's visible area without exceeding it. Use dvh
-          // (the small viewport, excluding the mobile browser's dynamic toolbar)
-          // and reserve only the fixed bottom navigation — there is no top app
-          // bar. A raw 100vh here overflowed the pane and forced scrolling.
+          // dvh minus the fixed bottom nav; a raw 100vh overflowed the pane.
           minHeight: `calc(100vh - ${NAV_HEIGHT}px - ${SAFE_AREA_BOTTOM})`,
           '@supports (height: 100dvh)': {
             minHeight: `calc(100dvh - ${NAV_HEIGHT}px - ${SAFE_AREA_BOTTOM})`,

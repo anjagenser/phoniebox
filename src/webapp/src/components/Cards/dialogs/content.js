@@ -22,8 +22,6 @@ import EditIcon from '@mui/icons-material/Edit';
 
 import request from '../../../utils/request';
 
-// Commands whose first argument is a Spotify/stream URI (contents resolved via
-// Mopidy) vs. a local music folder (contents listed from the file system).
 const URI_COMMANDS = ['play_uri'];
 const FOLDER_COMMANDS = ['play_folder', 'play_card'];
 
@@ -56,7 +54,6 @@ const CardContentDialog = ({ open, onClose, cardId, card = {}, detail = {} }) =>
         const { result } = await request('getUriTracks', { uri: arg0 });
         list = Array.isArray(result) ? result : [];
       } else if (kind === 'folder') {
-        // List the music files in the folder (depth 1); skip sub-directories.
         const { result } = await request('folderList', { folder: arg0 });
         list = Array.isArray(result)
           ? result

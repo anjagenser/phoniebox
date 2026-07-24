@@ -67,8 +67,6 @@ const getArgsValues = (actionData) => {
   );
 };
 
-// Build a kwargs object for an RPC command from an ordered args array,
-// using the command's declared argKeys (e.g. play_album -> {albumartist, album}).
 const buildCommandKwargs = (command, args = []) => {
   const argKeys = getCommandArgKeys(command);
   return argKeys.reduce(
@@ -86,13 +84,8 @@ const argsAreEqual = (a, b) => {
   return na.length === nb.length && na.every((value, index) => value === nb[index]);
 };
 
-// Commands whose first argument is a shareable "value" (a Spotify/stream URI or
-// a music folder) that usually should not be assigned to more than one card.
 const VALUE_BEARING_COMMANDS = ['play_uri', 'play_folder', 'play_album', 'play_single'];
 
-// Collect warnings that should be confirmed before a card is (re)assigned:
-//  - 'reassign': this very card already carries a different action (Feature 4)
-//  - 'duplicate': the exact same value is already assigned to other card(s) (Feature 5)
 const getAssignmentWarnings = ({ cardId, cardsList = {}, command, args }) => {
   const warnings = [];
   const id = cardId ? cardId.toString() : cardId;

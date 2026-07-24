@@ -10,7 +10,6 @@ import {
 
 import request from '../../../utils/request';
 
-// Colour a service's systemd state.
 const stateColor = (state) => {
   if (state === 'active') return 'success';
   if (state === 'not-found') return 'default';
@@ -28,7 +27,6 @@ const StatusServices = () => {
       if (active && result) setServices(result);
     };
     fetchData();
-    // Refresh periodically so a restart is reflected without reopening settings.
     const timer = setInterval(fetchData, 30000);
     return () => { active = false; clearInterval(timer); };
   }, []);

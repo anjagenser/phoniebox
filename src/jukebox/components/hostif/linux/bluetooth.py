@@ -21,18 +21,12 @@ import jukebox.plugs as plugin
 
 logger = logging.getLogger('jb.host.bt')
 
-# "Device AA:BB:CC:DD:EE:FF Some Name"
 _DEVICE_LINE = re.compile(r'^Device\s+([0-9A-Fa-f:]{17})\s+(.*)$')
-# "\tPaired: yes"
 _INFO_LINE = re.compile(r'^\s*([A-Za-z]+):\s+(.*)$')
 
-# Bluetooth device classes / icons we treat as audio outputs
 _AUDIO_ICONS = {'audio-card', 'audio-headset', 'audio-headphones', 'audio-speakers'}
 
 
-# ---------------------------------------------------------------------------
-# Pure parsing helpers (unit-testable, no side effects)
-# ---------------------------------------------------------------------------
 def parse_devices(output):
     """Parse ``bluetoothctl devices`` output into a list of ``(mac, name)``."""
     devices = []
@@ -47,7 +41,6 @@ def parse_info(output):
     """Parse ``bluetoothctl info <mac>`` output into a dict of properties."""
     info = {}
     for line in (output or '').splitlines():
-        # Skip the leading "Device <mac> (public)" header line
         if line.strip().startswith('Device '):
             continue
         match = _INFO_LINE.match(line)
@@ -69,9 +62,6 @@ def is_audio_device(info):
         return False
 
 
-# ---------------------------------------------------------------------------
-# bluetoothctl wrappers
-# ---------------------------------------------------------------------------
 def _bluetoothctl_available():
     return shutil.which('bluetoothctl') is not None
 
@@ -109,9 +99,6 @@ def _device_info(mac):
     }
 
 
-# ---------------------------------------------------------------------------
-# RPC functions (registered under the 'host' package)
-# ---------------------------------------------------------------------------
 @plugin.register(package='host')
 def bluetooth_available():
     """Return whether Bluetooth control (``bluetoothctl``) is available."""
@@ -147,7 +134,6 @@ def bluetooth_scan(timeout=12, audio_only=True):
     try:
         timeout = max(3, min(int(timeout), 30))
         _run(['power', 'on'], timeout=10)
-        # A timed scan returns on its own after <timeout> seconds
         _run(['--timeout', str(timeout), 'scan', 'on'], timeout=timeout + 8)
     except subprocess.TimeoutExpired:
         logger.warning("bluetooth_scan: scan timed out (continuing)")

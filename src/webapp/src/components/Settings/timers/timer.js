@@ -5,7 +5,6 @@ import { Countdown } from '../../general';
 import SetTimerDialog from './set-timer-dialog';
 import request from '../../../utils/request';
 
-// Custom hook to manage timer state and logic
 const useTimer = (type) => {
   const pluginName = `timer_${type.replace('-', '_')}`;
   const [timerState, setTimerState] = useState({
@@ -80,7 +79,6 @@ const useTimer = (type) => {
   };
 };
 
-// Separate component for timer actions
 const TimerActions = ({ enabled, running, status, error, isLoading, type, onSetTimer, onCancelTimer, waitSeconds, onSetWaitSeconds }) => {
   const { t } = useTranslation();
 
@@ -116,9 +114,7 @@ const Timer = ({ type }) => {
   const timer = useTimer(type);
 
   return (
-    // Lay out text and actions with flexbox instead of an absolutely-positioned
-    // secondaryAction, so on narrow (mobile) screens the actions wrap below the
-    // text instead of overlapping the "Set timer" button.
+    // Flexbox layout so actions wrap below the text on mobile instead of overlapping.
     <ListItem
       disableGutters
       sx={{ flexWrap: 'wrap', gap: 1, justifyContent: 'space-between' }}

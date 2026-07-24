@@ -17,7 +17,6 @@ import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import request from '../../utils/request';
 import { emit } from '../../context/toast/events';
 
-// Maintenance action: restart the critical services from the web UI.
 const SettingsServiceRestart = () => {
   const { t } = useTranslation();
   const [busy, setBusy] = useState(null); // command currently running
