@@ -17,7 +17,6 @@ import request from '../../../../../utils/request';
 
 const SelectedFolder = ({ values: [folder] }) => {
   const { t } = useTranslation();
-  // TODO: Implement type correctly
   const type = 'directory';
 
   const [config, setConfig] = useState({

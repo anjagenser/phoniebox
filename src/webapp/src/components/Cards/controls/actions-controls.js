@@ -21,9 +21,6 @@ import {
   getAssignmentWarnings,
 } from '../utils';
 
-// Music commands that can be previewed ("play now") from the editor. Other
-// actions (shutdown, timers, ...) are intentionally excluded to avoid triggering
-// side effects while editing a card.
 const PLAYABLE_COMMANDS = ['play_uri', 'play_folder', 'play_album', 'play_single'];
 
 const ActionsControls = ({
@@ -37,6 +34,7 @@ const ActionsControls = ({
   const [warnings, setWarnings] = useState([]);
   const [warningDialogOpen, setWarningDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const registerCard = async () => {
     const args = getArgsValues(actionData);
@@ -59,9 +57,6 @@ const ActionsControls = ({
     navigate('../');
   };
 
-  // Before saving, check whether this assignment overwrites the card's current
-  // action or reuses a value already assigned elsewhere. If so, ask the user to
-  // confirm; otherwise save straight away.
   const handleRegisterCard = async () => {
     setSaving(true);
     const args = getArgsValues(actionData);
@@ -109,13 +104,14 @@ const ActionsControls = ({
   };
 
   const handleDeleteCard = async () => {
+    setDeleting(true);
     const { error } = await request('deleteCard', { card_id: cardId });
+    setDeleting(false);
 
-    // TODO: Better Error handling in frontend
-    if (error) {
-      return console.error(error);
-    }
+    // request() already surfaces the error toast; keep the dialog open to retry.
+    if (error) return;
 
+    setDeleteDialogOpen(false);
     emit('success', t('cards.toasts.deleted'));
     navigate('/cards');
   };
@@ -162,8 +158,9 @@ const ActionsControls = ({
       </CardActions>
       <CardsDeleteDialog
         open={deleteDialogOpen}
-        onClose={() => setDeleteDialogOpen(false)}
+        onClose={() => !deleting && setDeleteDialogOpen(false)}
         doDelete={handleDeleteCard}
+        deleting={deleting}
         cardId={cardId}
       />
       <CardsAssignWarningDialog
