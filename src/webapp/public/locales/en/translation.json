@@ -173,6 +173,43 @@
   "header": {
     "back": "Back"
   },
+  "labels": {
+    "title": "Labels",
+    "format-info": "HERMA 5028 · {{perSheet}} labels per A4 sheet ({{width}} × {{height}} mm)",
+    "add-title": "Add labels",
+    "download": "Download PDF",
+    "generating": "Generating…",
+    "clear": "Clear all",
+    "count": "{{count}} label(s)",
+    "pdf-error": "Could not create the PDF",
+    "options": {
+      "captions": "Show captions",
+      "fit-label": "Image fit",
+      "fit": {
+        "cover": "Fill & crop",
+        "contain": "Fit whole"
+      },
+      "start-label": "Skip slots"
+    },
+    "calibration": {
+      "title": "Printer calibration (advanced)",
+      "description": "Nudge every label if your printer prints slightly off-register. Positive values move labels right / down.",
+      "offset-x": "Horizontal offset",
+      "offset-y": "Vertical offset"
+    },
+    "picker": {
+      "upload": "Upload image",
+      "search": "Search cards",
+      "add": "Add label",
+      "no-cards": "No cards registered yet.",
+      "loading-error": "Cards could not be loaded."
+    },
+    "preview": {
+      "sheet": "Sheet {{current}} of {{total}}",
+      "used": "used",
+      "remove": "Remove label"
+    }
+  },
   "library": {
     "upload": {
       "button-label": "Upload files or folders",
@@ -238,6 +275,7 @@
     "start": "Start",
     "library": "Library",
     "cards": "Cards",
+    "labels": "Labels",
     "statistics": "Statistics",
     "settings": "Settings"
   },

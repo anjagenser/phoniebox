@@ -7,6 +7,7 @@ import BottomNavigationAction from '@mui/material/BottomNavigationAction';
 import BarChartIcon from '@mui/icons-material/BarChart';
 import BookmarksIcon from '@mui/icons-material/Bookmarks';
 import HomeIcon from '@mui/icons-material/Home';
+import LabelIcon from '@mui/icons-material/Label';
 import MusicNoteIcon from '@mui/icons-material/MusicNote';
 import SettingsIcon from '@mui/icons-material/Settings';
 
@@ -21,8 +22,9 @@ export default function Navigation() {
   useEffect(() => {
     if (pathname.startsWith('/library')) return setValue(1);
     if (pathname.startsWith('/cards')) return setValue(2);
-    if (pathname.startsWith('/statistics')) return setValue(3);
-    if (pathname.startsWith('/settings')) return setValue(4);
+    if (pathname.startsWith('/labels')) return setValue(3);
+    if (pathname.startsWith('/statistics')) return setValue(4);
+    if (pathname.startsWith('/settings')) return setValue(5);
     return setValue(0);
   }, [pathname]);
 
@@ -61,6 +63,12 @@ export default function Navigation() {
         to="/cards"
         label={t('navigation.cards')}
         icon={<BookmarksIcon />}
+      />
+      <BottomNavigationAction
+        component={Link}
+        to="/labels"
+        label={t('navigation.labels')}
+        icon={<LabelIcon />}
       />
       <BottomNavigationAction
         component={Link}

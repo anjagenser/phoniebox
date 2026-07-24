@@ -173,6 +173,43 @@
   "header": {
     "back": "Zurück"
   },
+  "labels": {
+    "title": "Etiketten",
+    "format-info": "HERMA 5028 · {{perSheet}} Etiketten pro A4-Blatt ({{width}} × {{height}} mm)",
+    "add-title": "Etiketten hinzufügen",
+    "download": "PDF herunterladen",
+    "generating": "Wird erstellt…",
+    "clear": "Alle entfernen",
+    "count": "{{count}} Etikett(en)",
+    "pdf-error": "Das PDF konnte nicht erstellt werden",
+    "options": {
+      "captions": "Beschriftungen anzeigen",
+      "fit-label": "Bildausrichtung",
+      "fit": {
+        "cover": "Füllen & zuschneiden",
+        "contain": "Ganz einpassen"
+      },
+      "start-label": "Felder überspringen"
+    },
+    "calibration": {
+      "title": "Druckerkalibrierung (erweitert)",
+      "description": "Verschiebt alle Etiketten, falls dein Drucker leicht versetzt druckt. Positive Werte verschieben nach rechts / unten.",
+      "offset-x": "Horizontaler Versatz",
+      "offset-y": "Vertikaler Versatz"
+    },
+    "picker": {
+      "upload": "Bild hochladen",
+      "search": "Karten durchsuchen",
+      "add": "Etikett hinzufügen",
+      "no-cards": "Es wurden noch keine Karten registriert.",
+      "loading-error": "Karten konnten nicht geladen werden."
+    },
+    "preview": {
+      "sheet": "Blatt {{current}} von {{total}}",
+      "used": "belegt",
+      "remove": "Etikett entfernen"
+    }
+  },
   "library": {
     "upload": {
       "button-label": "Dateien oder Ordner hochladen",
@@ -238,6 +275,7 @@
     "start": "Start",
     "library": "Bibliothek",
     "cards": "Karten",
+    "labels": "Etiketten",
     "statistics": "Statistik",
     "settings": "Einstellungen"
   },

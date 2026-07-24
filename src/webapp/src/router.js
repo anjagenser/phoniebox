@@ -2,6 +2,7 @@ import React from 'react'
 import { Route, HashRouter, Routes, useLocation } from 'react-router-dom'
 
 import Cards from './components/Cards';
+import Labels from './components/Labels';
 import Library from './components/Library';
 import Navigation from './components/Navigation';
 import Player from './components/Player'
@@ -52,6 +53,10 @@ const AppLayout = () => {
           <Route
             path="cards/*"
             element={<Cards/>}
+          />
+          <Route
+            path="labels/*"
+            element={<Labels/>}
           />
           <Route
             path="settings/*"
