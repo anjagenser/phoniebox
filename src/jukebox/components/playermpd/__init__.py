@@ -799,6 +799,35 @@ class PlayerMPD:
 
         return self.coverart_cache_manager.cache_remote(uri, url)
 
+    def _resolve_spotify_meta(self, uri: str):
+        """Resolve a Spotify URI to ``(name, artist)`` via the public embed page.
+
+        mopidy-spotify's ``library.lookup`` returns no metadata (only cover art
+        via ``get_images`` works), so the readable name/artist are read from the
+        no-auth ``open.spotify.com/embed`` page's ``__NEXT_DATA__`` JSON, where
+        ``entity.title`` is the album/track/playlist name and ``entity.subtitle``
+        the artist (albums/tracks) or owner (playlists).
+        """
+        match = re.match(r'spotify:(track|album|playlist|artist):([A-Za-z0-9]+)', uri)
+        if not match:
+            return None, None
+        embed_url = f'https://open.spotify.com/embed/{match.group(1)}/{match.group(2)}'
+        try:
+            req = urllib.request.Request(embed_url, headers={'User-Agent': 'phoniebox'})
+            with urllib.request.urlopen(req, timeout=10) as response:
+                html = response.read().decode('utf-8', errors='replace')
+        except Exception as e:
+            logger.debug(f"_resolve_spotify_meta('{uri}') fetch failed: {e.__class__.__name__}: {e}")
+            return None, None
+        blob = re.search(r'<script id="__NEXT_DATA__" type="application/json">(.*?)</script>', html, re.S)
+        if not blob:
+            return None, None
+        try:
+            entity = json.loads(blob.group(1))['props']['pageProps']['state']['data']['entity']
+        except (ValueError, KeyError, TypeError):
+            return None, None
+        return (entity.get('title') or entity.get('name')), entity.get('subtitle')
+
     def _resolve_uri_details(self, uri: str):
         """Resolve a URI to ``{'name': ..., 'artist': ..., 'image': ...}`` via Mopidy.
 
@@ -824,7 +853,9 @@ class PlayerMPD:
             name = None
             artist = None
             try:
-                if ':playlist:' in uri:
+                if uri.startswith('spotify:'):
+                    name, artist = self._resolve_spotify_meta(uri)
+                elif ':playlist:' in uri:
                     playlist = self._mopidy_rpc('core.playlists.lookup', {'uri': uri})
                     if playlist:
                         name = playlist.get('name')
