@@ -412,7 +412,7 @@ class RotaryEncoder(NameMixin):
         """
         The function to run when the encoder is rotated counter clockwise
         """
-        return self._rotary.when_rotated_clockwise
+        return self._rotary.when_rotated_counter_clockwise
 
     @on_rotate_counter_clockwise.setter
     def on_rotate_counter_clockwise(self, func: Callable):

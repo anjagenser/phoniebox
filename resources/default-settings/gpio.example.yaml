@@ -2,7 +2,7 @@
 # Check out the documentation for many more configuration recipes
 # documentation/builders/gpio.md
 pin_factory:
-  type: rpigpio.RPiGPIOFactory
+  type: lgpio.LGPIOFactory
 output_devices:
   RfidBuzzer:
     # Sound an active Piezo Buzzer once when a card swipe has been detected. For unknown cards, sound it three times.
@@ -30,6 +30,14 @@ input_devices:
     actions:
       on_press:
         alias: toggle
+  ToggleMute:
+    # A button to mute / unmute the active audio output
+    type: Button
+    kwargs:
+      pin: 16
+    actions:
+      on_press:
+        alias: toggle_mute
   VolumeRotator:
     # A rotary encoder (e.g. KY-040) to change the volume.
     type: RotaryEncoder

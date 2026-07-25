@@ -107,8 +107,10 @@ service_is_running_callbacks = ServiceIsRunningCallbacks('service_running_callba
 def build_pin_factory():
     global IS_MOCKED
     global factory
-    # Supported factories: mock.MockFactory, pigpio.PiGPIOFactory, rpigpio.RPiGPIOFactory
-    pin_factory_name: str = cfg_gpio.setndefault('pin_factory', 'type', value='rpigpio.RPiGPIOFactory')
+    # Supported factories: mock.MockFactory, pigpio.PiGPIOFactory, rpigpio.RPiGPIOFactory, lgpio.LGPIOFactory
+    # lgpio is the default: the RPiGPIOFactory relies on RPi.GPIO, whose sysfs based edge detection
+    # is no longer available on current kernels, so input devices fail with "Failed to add edge detection"
+    pin_factory_name: str = cfg_gpio.setndefault('pin_factory', 'type', value='lgpio.LGPIOFactory')
     # Load the modules required for the chosen factory
     # And only those, to avoid problems with missing dependencies and avoid extra load times
     module_name, factory_name = pin_factory_name.rsplit(sep='.', maxsplit=1)

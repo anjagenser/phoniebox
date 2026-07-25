@@ -627,6 +627,16 @@ class PulseVolumeControl:
             self._publish_volume(pulse_inst)
 
     @plugin.tag
+    def toggle_mute(self):
+        """Toggle mute status for the currently active output and return the new status"""
+        with pulse_monitor as pulse_inst:
+            sink = pulse_inst.get_sink_by_name(pulse_inst.server_info().default_sink_name)
+            mute = not sink.mute
+            pulse_inst.mute(sink, mute)
+            self._publish_volume(pulse_inst)
+        return mute
+
+    @plugin.tag
     def set_output(self, sink_index: int):
         """Set the active output (sink_index = 0: primary, 1: secondary)"""
         with pulse_monitor as pulse:

@@ -145,6 +145,11 @@ _jukebox_core_install_settings() {
   cp -f "${INSTALLATION_PATH}/resources/default-settings/jukebox.default.yaml" "${SETTINGS_PATH}/jukebox.yaml"
   sed -i "s|%%JUKEBOX_AUDIOFOLDERS_PATH%%|${SHARED_PATH}/audiofolders|g" "${SETTINGS_PATH}/jukebox.yaml"
   cp -f "${INSTALLATION_PATH}/resources/default-settings/logger.default.yaml" "${SETTINGS_PATH}/logger.yaml"
+  # GPIO template for buttons and rotary encoders. It only takes effect once 'gpioz.enable'
+  # is set to true in jukebox.yaml, so an existing file is never overwritten.
+  if [[ ! -f "${SETTINGS_PATH}/gpio.yaml" ]]; then
+    cp -f "${INSTALLATION_PATH}/resources/default-settings/gpio.example.yaml" "${SETTINGS_PATH}/gpio.yaml"
+  fi
 }
 
 _jukebox_core_register_as_service() {

@@ -119,6 +119,18 @@ cmd_alias_definitions = {
         'plugin': 'ctrl',
         'method': 'toggle_output',
         'ignore_card_removal_action': True},
+    'mute': {
+        'title': 'Mute or unmute the audio output',
+        'package': 'volume',
+        'plugin': 'ctrl',
+        'method': 'mute',
+        'ignore_card_removal_action': True},
+    'toggle_mute': {
+        'title': 'Toggle mute of the audio output',
+        'package': 'volume',
+        'plugin': 'ctrl',
+        'method': 'toggle_mute',
+        'ignore_card_removal_action': True},
     'get_second_swipe_option': {
         'title': 'Get current second-swipe action',
         'package': 'player',

@@ -26,7 +26,7 @@ The GPIOZ configuration file has the following structure:
 
 ```yml
 pin_factory:
-  type: rpigpio.RPiGPIOFactory
+  type: lgpio.LGPIOFactory
 output_devices:
   ...
 input_devices:
@@ -34,6 +34,12 @@ input_devices:
 ```
 
 There is no need to touch the header, but some [Developer options](#developer-options) can be found there.
+
+> [!NOTE]
+> The default pin factory is `lgpio.LGPIOFactory`. Do not use `rpigpio.RPiGPIOFactory` on current
+> Raspberry Pi OS releases: it needs the classic `RPi.GPIO` library, whose sysfs based edge detection
+> is no longer available in recent kernels. Input devices then fail to build with
+> `RuntimeError: Failed to add edge detection`.
 
 A file with examples can be found in ``resources/default-settings/gpio.yaml``.
 Below you will find easy to adapt recipes for various configuration snippets.
@@ -104,6 +110,43 @@ input_devices:
       on_press:
         alias: change_volume
         args: +5
+```
+
+### Button: Mute
+
+A button to mute and unmute the audio output on single press:
+
+```yml
+input_devices:
+  ToggleMute:
+    type: Button
+    kwargs:
+      pin: 16
+    actions:
+      on_press:
+        alias: toggle_mute
+```
+
+### Button: Next / Previous Song
+
+Two separate buttons to skip forward and backward in the playlist:
+
+```yml
+input_devices:
+  NextSong:
+    type: Button
+    kwargs:
+      pin: 26
+    actions:
+      on_press:
+        alias: next_song
+  PreviousSong:
+    type: Button
+    kwargs:
+      pin: 13
+    actions:
+      on_press:
+        alias: prev_song
 ```
 
 ### Button: Shutdown
