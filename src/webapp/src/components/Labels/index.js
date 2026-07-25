@@ -158,7 +158,7 @@ const Labels = () => {
                 onChange={(e) => setStartOffset(Number(e.target.value))}
               >
                 {Array.from({ length: SLOTS_PER_SHEET }).map((_, i) => (
-                  <MenuItem key={i} value={i}>{i}</MenuItem>
+                  <MenuItem key={i} value={i}>{i + 1}</MenuItem>
                 ))}
               </Select>
             </FormControl>

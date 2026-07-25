@@ -191,7 +191,7 @@
         "cover": "Fill & crop",
         "contain": "Fit whole"
       },
-      "start-label": "Skip slots"
+      "start-label": "Start at label"
     },
     "calibration": {
       "title": "Printer calibration (advanced)",

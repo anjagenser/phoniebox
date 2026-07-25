@@ -191,7 +191,7 @@
         "cover": "Füllen & zuschneiden",
         "contain": "Ganz einpassen"
       },
-      "start-label": "Felder überspringen"
+      "start-label": "Startposition"
     },
     "calibration": {
       "title": "Druckerkalibrierung (erweitert)",
