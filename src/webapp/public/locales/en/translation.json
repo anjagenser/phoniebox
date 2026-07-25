@@ -153,14 +153,14 @@
       "cards": "Cards",
       "loading-error": "An error occurred while loading cards list.",
       "register-card": "Register a card",
-      "search-placeholder": "Search cards",
+      "search-placeholder": "Search by title or artist",
       "no-results": "No cards match your search.",
       "sort-label": "Sort by",
       "sort": {
-        "id-asc": "Card ID (A–Z)",
-        "id-desc": "Card ID (Z–A)",
-        "name-asc": "Name (A–Z)",
-        "artist-asc": "Artist (A–Z)"
+        "name-asc": "Title (A–Z)",
+        "name-desc": "Title (Z–A)",
+        "artist-asc": "Artist (A–Z)",
+        "artist-desc": "Artist (Z–A)"
       }
     },
     "register": {
@@ -275,7 +275,7 @@
     }
   },
   "navigation": {
-    "start": "Start",
+    "start": "Player",
     "library": "Library",
     "cards": "Cards",
     "labels": "Labels",

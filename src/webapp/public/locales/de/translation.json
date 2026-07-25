@@ -153,14 +153,14 @@
       "cards": "Karten",
       "loading-error": "Während des Ladens der Karten ist ein Fehler aufgetreten",
       "register-card": "Registriere eine Karte",
-      "search-placeholder": "Karten durchsuchen",
+      "search-placeholder": "Nach Titel oder Interpret suchen",
       "no-results": "Keine Karten entsprechen deiner Suche.",
       "sort-label": "Sortieren nach",
       "sort": {
-        "id-asc": "Karten-ID (A–Z)",
-        "id-desc": "Karten-ID (Z–A)",
-        "name-asc": "Name (A–Z)",
-        "artist-asc": "Interpret (A–Z)"
+        "name-asc": "Titel (A–Z)",
+        "name-desc": "Titel (Z–A)",
+        "artist-asc": "Interpret (A–Z)",
+        "artist-desc": "Interpret (Z–A)"
       }
     },
     "register": {
@@ -275,7 +275,7 @@
     }
   },
   "navigation": {
-    "start": "Start",
+    "start": "Player",
     "library": "Bibliothek",
     "cards": "Karten",
     "labels": "Etiketten",

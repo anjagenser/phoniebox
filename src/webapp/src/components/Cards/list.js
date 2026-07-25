@@ -122,7 +122,13 @@ const CardListItem = ({ cardId, card, detail = {}, onSelect }) => {
                 {artist}
               </Typography>
             )}
-            <Typography component="span" variant="caption" color="text.secondary" noWrap>
+            <Typography
+              component="span"
+              variant="caption"
+              color="text.disabled"
+              noWrap
+              sx={{ ml: 'auto', fontSize: '0.65rem', opacity: 0.7 }}
+            >
               {cardId}
             </Typography>
           </Box>

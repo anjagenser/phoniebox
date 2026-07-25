@@ -22,7 +22,7 @@ import request from '../../utils/request';
 import { resolveCardDisplay } from './display';
 import { MINI_PLAYER_HEIGHT, NAV_HEIGHT, SAFE_AREA_BOTTOM } from '../Player/mini-player';
 
-const SORT_OPTIONS = ['id-asc', 'id-desc', 'name-asc', 'artist-asc'];
+const SORT_OPTIONS = ['name-asc', 'name-desc', 'artist-asc', 'artist-desc'];
 
 const CardsOverview = () => {
   const navigate = useNavigate();
@@ -34,7 +34,7 @@ const CardsOverview = () => {
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [sort, setSort] = useState('id-asc');
+  const [sort, setSort] = useState('name-asc');
 
   const openRegisterCard = () => {
     navigate('register');
@@ -79,33 +79,32 @@ const CardsOverview = () => {
 
     const entries = Object.keys(data).map((id) => ({ id, card: data[id] }));
 
-    const matches = ({ id, card }) => {
+    const matches = ({ id }) => {
       if (!query) return true;
       const haystack = [
-        id,
-        card.from_alias,
-        ...((card.action && card.action.args) || []),
         details[id]?.name,
         details[id]?.artist,
       ].filter(Boolean).join(' ').toLowerCase();
       return haystack.includes(query);
     };
 
-    const sorters = {
-      'id-asc': (a, b) => a.id.localeCompare(b.id),
-      'id-desc': (a, b) => b.id.localeCompare(a.id),
-      'name-asc': (a, b) => label(a.id).localeCompare(label(b.id)),
-      'artist-asc': (a, b) => {
-        const aa = artistLabel(a.id);
-        const ba = artistLabel(b.id);
-        if (!aa && !ba) return label(a.id).localeCompare(label(b.id));
-        if (!aa) return 1;
-        if (!ba) return -1;
-        return aa.localeCompare(ba) || label(a.id).localeCompare(label(b.id));
-      },
+    const byArtist = (a, b, dir) => {
+      const aa = artistLabel(a.id);
+      const ba = artistLabel(b.id);
+      if (!aa && !ba) return label(a.id).localeCompare(label(b.id));
+      if (!aa) return 1;
+      if (!ba) return -1;
+      return dir * aa.localeCompare(ba) || label(a.id).localeCompare(label(b.id));
     };
 
-    return entries.filter(matches).sort(sorters[sort] || sorters['id-asc']);
+    const sorters = {
+      'name-asc': (a, b) => label(a.id).localeCompare(label(b.id)),
+      'name-desc': (a, b) => label(b.id).localeCompare(label(a.id)),
+      'artist-asc': (a, b) => byArtist(a, b, 1),
+      'artist-desc': (a, b) => byArtist(a, b, -1),
+    };
+
+    return entries.filter(matches).sort(sorters[sort] || sorters['name-asc']);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data, details, search, sort]);
 
