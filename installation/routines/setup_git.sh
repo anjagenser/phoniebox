@@ -139,6 +139,33 @@ _git_convert_tardir_git_repo() {
   unset HASH_BRANCH
 }
 
+# Local source installs (see install-jukebox.sh) must not talk to GitHub: the tree
+# may hold unpublished changes and there is no tarball hash to check out. Turn the
+# directory into a self-contained repository so updates/diffs stay possible.
+_git_init_local_repo() {
+  log "****************************************************
+*** Initializing the local source tree as git repository
+****************************************************"
+
+  if [[ -d .git ]]; then
+    log "*** Already a git repository, keeping it as it is"
+  else
+    git -c init.defaultBranch="${GIT_BRANCH}" init
+    git config pull.rebase false
+    git add -A
+    # A commit is needed so that 'git status' / 'git diff' are usable afterwards
+    git -c user.email="install@phoniebox.local" -c user.name="Phoniebox Installer" \
+        commit --quiet -m "Local install snapshot ${INSTALL_ID}" --no-verify \
+        || log "*** Nothing to commit"
+  fi
+
+  cp -f .githooks/* .git/hooks 2>/dev/null || true
+
+  log "*** Git status *************************************"
+  git status -sb || true
+  log "****************************************************"
+}
+
 _git_repo_check() {
     print_verify_installation
 
@@ -149,7 +176,11 @@ _git_repo_check() {
 _run_init_git_repo_from_tardir() {
     cd "${INSTALLATION_PATH}" || exit_on_error
     _git_install_os_dependencies
-    _git_convert_tardir_git_repo
+    if [[ "${LOCAL_SOURCE}" == true ]]; then
+        _git_init_local_repo
+    else
+        _git_convert_tardir_git_repo
+    fi
     _git_repo_check
 }
 

@@ -1,3 +1,7 @@
+# Set by install-jukebox.sh when installing an already present source tree
+# instead of a download from GitHub. Defaulted here for other entry points.
+LOCAL_SOURCE=${LOCAL_SOURCE:-false}
+
 SHARED_PATH="${INSTALLATION_PATH}/shared"
 SETTINGS_PATH="${SHARED_PATH}/settings"
 SYSTEMD_PATH="/etc/systemd/system"

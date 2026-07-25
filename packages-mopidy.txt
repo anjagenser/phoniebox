@@ -6,3 +6,11 @@ python3-cffi
 python3-ply
 python3-pycparser
 mopidy
+
+# GStreamer decoders. Mopidy plays everything through GStreamer, and the plugin
+# sets are not pulled in by 'mopidy' with --no-install-recommends. Without
+# 'plugins-bad'/'libav' there is no AAC decoder, so 'mopidy local scan' rejects
+# every .m4a with "No audio found in file" and those tracks never play.
+gstreamer1.0-plugins-good
+gstreamer1.0-plugins-bad
+gstreamer1.0-libav

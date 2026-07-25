@@ -351,37 +351,92 @@ Would you like to update the operating system? [Y/n]"
   log "UPDATE_RASPI_OS=${UPDATE_RASPI_OS}"
 }
 
-_option_disable_onboard_audio() {
-  # Disable BCM on-chip audio (typically Headphones)
-  # not needed when external sound card is sued
+_option_audio_output() {
+  # AUDIO_HAT / DISABLE_ONBOARD_AUDIO
+  # Which speaker hardware is built into this box. Selecting an I2S sound card
+  # also enables its overlay during the installation (see setup_audio_hat.sh).
   clear_c
-  print_c "--------------------- ON-CHIP AUDIO ---------------------
+  print_c "--------------------- AUDIO OUTPUT ----------------------
 
-If you are using an external sound card (e.g. USB,
-HifiBerry, PirateAudio, etc), we recommend to disable
-the on-chip audio. It will make the ALSA sound
-configuration easier.
-If you are planning to only use Bluetooth speakers,
-leave the on-chip audio enabled!
-(This will touch your boot configuration file.
-We will do our best not to mess anything up. However,
-a backup copy will be written. Please check the install
-log after for further details.)
+Which audio output is built into your Phoniebox?
 
-Disable Pi's on-chip audio (headphone / jack output)? [y/N]"
-  read -r response
-  case "$response" in
-    [yY][eE][sS]|[yY])
+For an external sound card the Pi's on-chip audio is
+switched off, which makes the sound configuration easier.
+(This touches your boot configuration file. A backup copy
+will be written, see the install log for details.)
+
+  1) Sound card HAT (HiFiBerry and compatible I2S boards)
+  2) USB sound card / USB speaker
+  3) Raspberry Pi on-board output (3.5mm jack or HDMI)
+  4) Bluetooth speaker only
+
+Enter your choice [1-4]:"
+  local response_audio
+  read -r response_audio
+  case "$response_audio" in
+    1)
+      _option_audio_hat_board
       DISABLE_ONBOARD_AUDIO=true
       ;;
+    2)
+      AUDIO_HAT="none"
+      DISABLE_ONBOARD_AUDIO=true
+      ;;
+    4)
+      AUDIO_HAT="none"
+      DISABLE_ONBOARD_AUDIO=false
+      ;;
     *)
+      # Default (also for an empty answer): keep the Pi as it comes
+      AUDIO_HAT="none"
+      DISABLE_ONBOARD_AUDIO=false
       ;;
   esac
-  log "DISABLE_ONBOARD_AUDIO=${DISABLE_ONBOARD_AUDIO}"
 
+  log "AUDIO_HAT=${AUDIO_HAT}"
+  log "DISABLE_ONBOARD_AUDIO=${DISABLE_ONBOARD_AUDIO}"
+}
+
+_option_audio_hat_board() {
+  local board_count=${#AUDIO_HAT_CHOICES[@]}
+  local selection=""
+
+  while [[ -z "$selection" ]]; do
+    print_c "
+--- Which sound card is it?"
+    local index=1
+    local choice
+    for choice in "${AUDIO_HAT_CHOICES[@]}"; do
+      print_c "  ${index}) ${choice#*|}"
+      ((index++))
+    done
+    print_c "
+If you are unsure, check the label on the board.
+The HiFiBerry MiniAmp is option 1.
+
+Enter your choice [1-${board_count}]:"
+    local response_board
+    read -r response_board
+    if [[ "$response_board" =~ ^[0-9]+$ ]] \
+       && [[ "$response_board" -ge 1 ]] && [[ "$response_board" -le "$board_count" ]]; then
+      selection="${AUDIO_HAT_CHOICES[$((response_board - 1))]}"
+    else
+      print_c "Please enter a number between 1 and ${board_count}."
+    fi
+  done
+
+  AUDIO_HAT="${selection%%|*}"
 }
 
 _option_webapp_devel_build() {
+  # A local source tree has no matching pre-built bundle on GitHub (the release
+  # assets are keyed by version and commit hash), so it must be built here.
+  if [[ "${LOCAL_SOURCE}" == true ]]; then
+    ENABLE_WEBAPP_PROD_DOWNLOAD=false
+    log "ENABLE_WEBAPP_PROD_DOWNLOAD=${ENABLE_WEBAPP_PROD_DOWNLOAD} (local source install)"
+    return
+  fi
+
   # Let's detect if we are on the official release branch
   if [[ "$GIT_BRANCH" != "${GIT_BRANCH_RELEASE}" && "$GIT_BRANCH" != "${GIT_BRANCH_DEVELOP}" ]] || [[ "$GIT_USER" != "$GIT_UPSTREAM_USER" ]] || [[ "$CI_RUNNING" == "true" ]] ; then
     # Unless ENABLE_WEBAPP_PROD_DOWNLOAD is forced to true by user override, do not download a potentially stale build
@@ -417,24 +472,146 @@ Do you want to build the Web App? [Y/n]"
   log "ENABLE_WEBAPP_PROD_DOWNLOAD=${ENABLE_WEBAPP_PROD_DOWNLOAD}"
 }
 
-_run_customize_options() {
-  _option_ipv6
-  _option_static_ip
-  _option_autohotspot
-  _option_bluetooth
-  _option_disable_onboard_audio
-  _option_mopidy
-  _option_mpd
-  _option_rfid_reader
-  _option_samba
-  _option_webapp
-  if [[ $ENABLE_WEBAPP == true ]] ; then
-    _option_webapp_devel_build
-    _option_kiosk_mode
+_option_audio_output_summary() {
+  if [[ "$AUDIO_HAT" != "none" ]]; then
+    echo "$(get_audio_hat_description "${AUDIO_HAT}") [${AUDIO_HAT}]"
+  elif [[ "$DISABLE_ONBOARD_AUDIO" == true ]]; then
+    echo "USB sound card (on-board audio off)"
+  else
+    echo "Raspberry Pi on-board output / Bluetooth"
   fi
-  # Bullseye is currently under active development and should be updated in any case.
-  # Hence, removing the step below as it becomse mandatory
-  # _options_update_raspi_os
+}
+
+_option_backend_summary() {
+  if [[ "$SETUP_MOPIDY" == true ]]; then
+    echo "Mopidy, with Spotify support"
+  elif [[ "$SETUP_MPD" == true ]]; then
+    echo "MPD, local files only"
+  else
+    echo "none"
+  fi
+}
+
+_option_yes_no_summary() {
+  if [[ "$1" == true ]]; then echo "yes"; else echo "no"; fi
+}
+
+# Show every choice in one place and let the user confirm the box being built.
+# Returns 0 to start the installation, 1 to ask all questions again.
+_option_confirm_components() {
+  local webapp_summary="no"
+  if [[ "$ENABLE_WEBAPP" == true ]]; then
+    if [[ "$ENABLE_WEBAPP_PROD_DOWNLOAD" == true || "$ENABLE_WEBAPP_PROD_DOWNLOAD" == "release-only" ]]; then
+      webapp_summary="yes, pre-built version"
+    else
+      webapp_summary="yes, built on this device"
+    fi
+  fi
+
+  local rfid_summary="no"
+  if [[ "$ENABLE_RFID_READER" == true ]]; then
+    rfid_summary="yes, reader type is selected during the installation"
+  fi
+
+  local autohotspot_summary="no"
+  if [[ "$ENABLE_AUTOHOTSPOT" == true ]]; then
+    autohotspot_summary="yes, SSID '${AUTOHOTSPOT_SSID}' (${AUTOHOTSPOT_COUNTRYCODE}), ${AUTOHOTSPOT_IP}"
+  fi
+
+  local static_ip_summary="no, address from DHCP"
+  if [[ "$ENABLE_STATIC_IP" == true ]]; then
+    static_ip_summary="yes, ${CURRENT_IP_ADDRESS} on ${CURRENT_INTERFACE}"
+  fi
+
+  clear_c
+  print_c "================ YOUR PHONIEBOX COMPONENTS ==============
+
+HARDWARE
+  Audio output      : $(_option_audio_output_summary)
+  RFID reader       : ${rfid_summary}
+  Bluetooth         : $(_option_yes_no_summary $([[ "$DISABLE_BLUETOOTH" == true ]] && echo false || echo true))
+
+SOFTWARE
+  Music backend     : $(_option_backend_summary)
+  Web App           : ${webapp_summary}
+  Kiosk mode        : $(_option_yes_no_summary "$ENABLE_KIOSK_MODE")
+  Samba file share  : $(_option_yes_no_summary "$ENABLE_SAMBA")
+
+NETWORK
+  Autohotspot       : ${autohotspot_summary}
+  Static IP         : ${static_ip_summary}
+  IPv6              : $(_option_yes_no_summary $([[ "$DISABLE_IPv6" == true ]] && echo false || echo true))
+
+=========================================================
+
+Please check the list against the hardware you built in.
+A wrong sound card or reader means no sound and no cards.
+
+Is this correct and should the installation start? [Y/n]
+(n = answer all questions again, q = quit)"
+
+  local response_confirm
+  read -r response_confirm
+  case "$response_confirm" in
+    [qQ]|[qQ][uU][iI][tT])
+      print_lc "Installation aborted on user request."
+      exit 0
+      ;;
+    [nN][oO]|[nN])
+      return 1
+      ;;
+    *)
+      return 0
+      ;;
+  esac
+}
+
+# Start each pass from the shipped defaults. Every question keeps the current
+# value when the user just presses Enter, so without a reset the second pass
+# could not undo an answer given in the first one.
+_option_reset_to_defaults() {
+  local spotify_client_id="${SPOTIFY_CLIENT_ID}"
+  local spotify_client_secret="${SPOTIFY_CLIENT_SECRET}"
+
+  source "${INSTALLATION_PATH}/installation/includes/01_default_config.sh" || exit_on_error
+
+  # Keep credentials that have already been typed in, so they need not be retyped
+  SPOTIFY_CLIENT_ID="${spotify_client_id}"
+  SPOTIFY_CLIENT_SECRET="${spotify_client_secret}"
+}
+
+_run_customize_options() {
+  local confirmed=false
+  local first_pass=true
+
+  while [[ "$confirmed" == false ]]; do
+    if [[ "$first_pass" == false ]]; then
+      _option_reset_to_defaults
+    fi
+    first_pass=false
+
+    _option_ipv6
+    _option_static_ip
+    _option_autohotspot
+    _option_bluetooth
+    _option_audio_output
+    _option_mopidy
+    _option_mpd
+    _option_rfid_reader
+    _option_samba
+    _option_webapp
+    if [[ $ENABLE_WEBAPP == true ]] ; then
+      _option_webapp_devel_build
+      _option_kiosk_mode
+    fi
+    # Bullseye is currently under active development and should be updated in any case.
+    # Hence, removing the step below as it becomse mandatory
+    # _options_update_raspi_os
+
+    if _option_confirm_components; then
+      confirmed=true
+    fi
+  done
 }
 
 customize_options() {

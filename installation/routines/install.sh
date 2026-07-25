@@ -4,6 +4,7 @@ install() {
   clear_c
   show_slow_hardware_message
   set_raspi_config
+  setup_audio_hat
   set_ssh_qos
   update_raspi_os
   init_git_repo_from_tardir

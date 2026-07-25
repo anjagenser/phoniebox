@@ -3,8 +3,22 @@
 KIOSK_MODE_CONF_HEADER="## Jukebox Kiosk Mode"
 KIOSK_MODE_XINITRC='/etc/xdg/openbox/autostart'
 KIOSK_MODE_BASHRC="${HOME_PATH}/.bashrc"
-KIOSK_MODE_CHROMIUM_CUSTOM_DISABLE_UPDATE_CHECK='/etc/chromium-browser/customizations/01-disable-update-check'
 KIOSK_MODE_CHROMIUM_FLAG_UPDATE_INTERVAL='--check-for-update-interval=31536000'
+
+# Chromium was renamed on Debian 13 (Trixie): the package is 'chromium' and the
+# binary is /usr/bin/chromium. 'chromium-browser' still exists there, but only as
+# a transitional dummy package that ships no binary at all - installing it and
+# then calling 'chromium-browser' leaves the kiosk on an empty desktop.
+# The flag drop-in directory changed with it.
+if [[ "$(is_debian_version_at_least 13)" == "true" ]]; then
+    KIOSK_MODE_CHROMIUM_PACKAGE='chromium'
+    KIOSK_MODE_CHROMIUM_BIN='chromium'
+    KIOSK_MODE_CHROMIUM_CUSTOM_DISABLE_UPDATE_CHECK='/etc/chromium.d/01-disable-update-check'
+else
+    KIOSK_MODE_CHROMIUM_PACKAGE='chromium-browser'
+    KIOSK_MODE_CHROMIUM_BIN='chromium-browser'
+    KIOSK_MODE_CHROMIUM_CUSTOM_DISABLE_UPDATE_CHECK='/etc/chromium-browser/customizations/01-disable-update-check'
+fi
 
 _kiosk_mode_install_os_dependencies() {
   print_lc "  Install Kiosk Mode dependencies"
@@ -15,7 +29,7 @@ _kiosk_mode_install_os_dependencies() {
     x11-xserver-utils \
     xinit \
     openbox \
-    chromium-browser
+    "${KIOSK_MODE_CHROMIUM_PACKAGE}"
 }
 
 _kiosk_mode_set_autostart() {
@@ -41,7 +55,7 @@ xset -dpms
 # Start Chromium in kiosk mode
 sed -i 's/"exited_cleanly":false/"exited_cleanly":true/' ~/.config/chromium/'Local State'
 sed -i 's/"exited_cleanly":false/"exited_cleanly":true/; s/"exit_type":"[^"]\+"/"exit_type":"Normal"/' ~/.config/chromium/Default/Preferences
-chromium-browser http://localhost \
+${KIOSK_MODE_CHROMIUM_BIN} http://localhost \
   --disable-infobars \
   --disable-pinch \
   --disable-translate \

@@ -14,6 +14,24 @@ _run_set_raspi_config() {
   # power management of wifi: switch off to avoid disconnecting
   log "  Disable Wifi power management to avoid disconnecting"
   sudo iwconfig wlan0 power off
+  # 'iwconfig' only changes the running interface, and NetworkManager turns power
+  # saving back on whenever it (re)connects. Persist it in the connection profile
+  # as well (2 = disable), so the Phoniebox stays reachable after every reconnect.
+  if command -v nmcli >/dev/null 2>&1; then
+    local wifi_device
+    wifi_device=$(nmcli -t -f DEVICE,TYPE device status 2>/dev/null | awk -F: '$2=="wifi"{print $1; exit}')
+    if [[ -n "$wifi_device" ]]; then
+      local wifi_profile
+      wifi_profile=$(nmcli -t -f DEVICE,CONNECTION device status 2>/dev/null \
+          | awk -F: -v dev="$wifi_device" '$1==dev{print $2; exit}')
+      if [[ -n "$wifi_profile" && "$wifi_profile" != "--" ]]; then
+        log "    Persist powersave=off in WiFi profile '${wifi_profile}'"
+        sudo nmcli connection modify "$wifi_profile" 802-11-wireless.powersave 2
+      else
+        log "    No WiFi connection profile found, skipping persistent setting"
+      fi
+    fi
+  fi
 
   # On-board audio
   if [ "$DISABLE_ONBOARD_AUDIO" == true ]; then

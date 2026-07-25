@@ -24,7 +24,26 @@ CURRENT_USER="${SUDO_USER:-$(whoami)}"
 CURRENT_USER_GROUP=$(id -gn "$CURRENT_USER")
 HOME_PATH=$(getent passwd "$CURRENT_USER" | cut -d: -f6)
 
-INSTALLATION_PATH="${HOME_PATH}/${GIT_REPO_NAME}"
+# Local source mode
+# When this script is started from inside a complete source tree (instead of being
+# piped from the web), that tree is installed as it is - nothing is downloaded from
+# GitHub. This is the way to install a locally modified or not-yet-published version:
+#   cd ~/RPi-Jukebox-RFID && bash installation/install-jukebox.sh
+LOCAL_SOURCE_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." 2>/dev/null && pwd)"
+if [[ -n "$LOCAL_SOURCE_PATH" ]] \
+   && [[ -d "${LOCAL_SOURCE_PATH}/installation/routines" ]] \
+   && [[ -d "${LOCAL_SOURCE_PATH}/src/jukebox" ]]; then
+    LOCAL_SOURCE=true
+else
+    LOCAL_SOURCE=false
+    LOCAL_SOURCE_PATH=""
+fi
+
+if [[ "$LOCAL_SOURCE" == true ]]; then
+    INSTALLATION_PATH="${LOCAL_SOURCE_PATH}"
+else
+    INSTALLATION_PATH="${HOME_PATH}/${GIT_REPO_NAME}"
+fi
 INSTALL_ID=$(date +%s)
 INSTALLATION_LOGFILE="${HOME_PATH}/INSTALL-${INSTALL_ID}.log"
 
@@ -87,6 +106,23 @@ Check install log for details:"
 }
 
 _check_existing_installation() {
+    if [[ "$LOCAL_SOURCE" == true ]]; then
+        # The source tree itself is expected to exist here. A virtual environment
+        # inside it means the installation has already been run on this tree.
+        if [[ -e "${INSTALLATION_PATH}/.venv" ]]; then
+            print_lc "
+############## EXISTING INSTALLATION FOUND ##############
+'${INSTALLATION_PATH}/.venv' exists, so this source tree
+has already been installed. Rerunning the installer over
+an existing installation is not supported (overwrites
+settings, etc). Please backup your 'shared' folder and
+manually changed files and run the installation on a
+fresh image."
+            exit 1
+        fi
+        return
+    fi
+
     if [[ -e "${INSTALLATION_PATH}" ]]; then
         print_lc "
 ############## EXISTING INSTALLATION FOUND ##############
@@ -122,6 +158,27 @@ _download_jukebox_source() {
   log "#########################################################"
 }
 
+_prepare_local_source() {
+  log "#########################################################"
+  print_lc "Installing the local source tree at ${INSTALLATION_PATH}"
+  print_lc "(no download from GitHub)"
+
+  if [[ "${INSTALLATION_PATH}" != "${HOME_PATH}/${GIT_REPO_NAME}" ]]; then
+    print_lc "NOTE: the source is not at the documented location
+      ${HOME_PATH}/${GIT_REPO_NAME}
+      Paths in the documentation refer to that location."
+  fi
+
+  # A tree transferred as a tar/zip/copy can have lost the executable bit that
+  # git records (100755 -> 100644). Several install steps call scripts with a
+  # leading './' (Web App build, sound card overlay, RFID reader), which then
+  # fail with 'Permission denied'.
+  find "${INSTALLATION_PATH}" -type f -name '*.sh' -exec chmod +x {} + 2>/dev/null
+
+  log "DONE: preparing local source"
+  log "#########################################################"
+}
+
 _load_sources() {
     # Load / Source dependencies
     for i in "${INSTALLATION_PATH}"/installation/includes/*; do
@@ -143,7 +200,11 @@ _check_existing_installation
 log "Current User: $CURRENT_USER"
 log "User home dir: $HOME_PATH"
 
-_download_jukebox_source
+if [[ "$LOCAL_SOURCE" == true ]]; then
+    _prepare_local_source
+else
+    _download_jukebox_source
+fi
 cd "${INSTALLATION_PATH}" || exit_on_error "ERROR: Changing to install dir failed."
 _load_sources
 

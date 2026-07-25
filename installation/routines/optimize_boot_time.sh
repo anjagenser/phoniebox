@@ -54,6 +54,20 @@ _optimize_disable_irrelevant_services() {
   # nmbd is the Samba NetBIOS name service (legacy Windows name resolution).
   # The file share is served by smbd alone; nmbd just adds ~1.5s to boot.
   _disable_service_if_present nmbd.service
+
+  # atd runs jobs scheduled with 'at'. The Jukebox schedules its timers in its own
+  # process and never uses 'at'.
+  _disable_service_if_present atd.service
+
+  # Housekeeping jobs of a general purpose Debian machine. On an appliance they
+  # only cost boot time, I/O and SD card writes:
+  #   man-db        - rebuilds manual page indexes (Lite images have almost no man pages)
+  #   dpkg-db-backup- daily copy of the package database
+  #   e2scrub_all   - online ext4 metadata check, needs LVM snapshots (the Pi has no LVM)
+  _disable_service_if_present man-db.timer
+  _disable_service_if_present dpkg-db-backup.timer
+  _disable_service_if_present e2scrub_all.timer
+  _disable_service_if_present e2scrub_reap.service
 }
 
 # Start the user systemd instance (and therefore the --user Jukebox, Mopidy and
@@ -197,6 +211,11 @@ _optimize_check() {
     verify_optional_service_enablement NetworkManager-wait-online.service disabled
     verify_optional_service_enablement systemd-networkd-wait-online.service disabled
     verify_optional_service_enablement nmbd.service disabled
+    verify_optional_service_enablement atd.service disabled
+    verify_optional_service_enablement man-db.timer disabled
+    verify_optional_service_enablement dpkg-db-backup.timer disabled
+    verify_optional_service_enablement e2scrub_all.timer disabled
+    verify_optional_service_enablement e2scrub_reap.service disabled
 
     if [ "$DISABLE_BLUETOOTH" = true ] ; then
         verify_optional_service_enablement hciuart.service disabled

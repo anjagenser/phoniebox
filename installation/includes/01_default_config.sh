@@ -24,6 +24,9 @@ ENABLE_SAMBA=true
 ENABLE_WEBAPP=true
 ENABLE_KIOSK_MODE=false
 DISABLE_ONBOARD_AUDIO=false
+# Audio output hardware. Either "none" (on-board jack/HDMI, USB card or Bluetooth
+# only) or the device tree overlay of an I2S sound card, e.g. "hifiberry-dac".
+AUDIO_HAT="none"
 # Always try to use GIT with SSH first, and on failure drop down to HTTPS
 GIT_USE_SSH=${GIT_USE_SSH:-"true"}
 

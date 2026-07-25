@@ -30,7 +30,9 @@ example_usage() {
 
 enable_hifiberry() {
     echo "Enabling HiFiBerry board..."
-    grep -qxF "^dtoverlay=$1" "$boot_config_path" || echo "dtoverlay=$1" | sudo tee -a "$boot_config_path" > /dev/null
+    # -F -x compares whole lines literally, so the pattern must not contain '^'
+    # (with it the test never matched and the overlay was appended again on every run)
+    grep -qxF "dtoverlay=$1" "$boot_config_path" || echo "dtoverlay=$1" | sudo tee -a "$boot_config_path" > /dev/null
     ./../options/onboard_sound.sh disable
 }
 
