@@ -270,9 +270,10 @@ class PlayerMPD:
                     logger.error(f"Giving up connecting to MPD at {self.mpd_host}:6600 "
                                  f"after {connect_timeout:.0f}s ({attempt} attempts)")
                     raise
-                logger.warning(f"MPD not ready at {self.mpd_host}:6600 "
-                               f"({type(e).__name__}); retrying...")
-                time.sleep(1.0)
+                if attempt == 1:
+                    logger.warning(f"MPD not ready at {self.mpd_host}:6600 "
+                                   f"({type(e).__name__}); retrying...")
+                time.sleep(0.25)
 
     def _detect_backend(self) -> str:
         """Return the active player backend: ``'mopidy'`` or ``'mpd'``.
@@ -1385,10 +1386,10 @@ def initialize():
     global play_card_callbacks
     play_card_callbacks = PlayContentCallbacks[PlayCardState]('play_card_callbacks', logger, context=player_ctrl.mpd_lock)
 
-    # Update mpc library
+    # Rescan the library in the background so startup is not blocked by it.
     library_update = cfg.setndefault('playermpd', 'library', 'update_on_startup', value=True)
     if library_update:
-        player_ctrl.update()
+        player_ctrl._rescan_library_async()
 
     # Check user rights on music library — run in background; can be slow on large libraries
     library_check_user_rights = cfg.setndefault('playermpd', 'library', 'check_user_rights', value=True)
