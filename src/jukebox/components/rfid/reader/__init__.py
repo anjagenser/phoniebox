@@ -58,7 +58,11 @@ rfid_card_detect_callbacks: RfidCardDetectCallbacks = RfidCardDetectCallbacks('r
 
 
 def _count_card_swipe(card_id: str, state: RfidCardDetectState):
-    """Record every accepted card swipe for the usage statistics."""
+    """Register an accepted card swipe for the usage statistics.
+
+    The store counts it only if the card is not replaced within the minimum
+    play time.
+    """
     if state == RfidCardDetectState.received:
         try:
             stats.count_card_swipe(card_id)

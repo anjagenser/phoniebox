@@ -196,6 +196,12 @@ class PlayerMPD:
         self.mpd_client = mpd.MPDClient()
         self.coverart_cache_manager = CoverartCacheManager()
 
+        # play time accumulator for the usage statistics, see _count_song_statistic
+        self._stats_song_file = None
+        self._stats_song_seconds = 0.0
+        self._stats_song_counted = False
+        self._stats_song_tick = None
+
         # The timeout refer to the low-level socket time-out
         # If these are too short and the response is not fast enough (due to the PI being busy),
         # the current MPC command times out. Leave these at blocking calls, since we do not react on a timed out socket
@@ -408,17 +414,36 @@ class PlayerMPD:
         publishing.get_publisher().send('playerstatus', self.mpd_status)
 
     def _count_song_statistic(self):
-        """Count a song play once, when the currently playing track changes.
+        """Count a song play once it has been playing long enough.
 
-        Called on every status poll; it records at most one play per song change
-        while the player is actually playing.
+        Called on every status poll; sums up the time the current track was
+        actually playing (paused time does not add up) and records at most one
+        play per track, once the minimum play time is reached.
         """
-        if self.mpd_status.get('state') != 'play':
-            return
         file = self.mpd_status.get('file')
-        if not file or file == getattr(self, '_stats_last_counted_file', None):
+        playing = self.mpd_status.get('state') == 'play'
+        now = time.monotonic()
+
+        if file != self._stats_song_file:
+            self._stats_song_file = file
+            self._stats_song_seconds = 0.0
+            self._stats_song_counted = False
+            self._stats_song_tick = None
+
+        if not playing:
+            self._stats_song_tick = None
             return
-        self._stats_last_counted_file = file
+        if self._stats_song_tick is not None:
+            # cap the increment so a stalled poll loop cannot fast-forward the timer
+            self._stats_song_seconds += min(now - self._stats_song_tick,
+                                            self.mpd_status_poll_interval * 4)
+        self._stats_song_tick = now
+
+        if self._stats_song_counted or not file:
+            return
+        if self._stats_song_seconds < stats.min_play_seconds():
+            return
+        self._stats_song_counted = True
         try:
             stats.count_song_play(
                 file=file,

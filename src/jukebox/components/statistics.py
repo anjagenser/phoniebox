@@ -9,6 +9,10 @@ Keeps persistent counters for
 Next to the all-time counters, per-month buckets are kept so historic top lists
 (per month and, aggregated from the months, per year) can be reported.
 
+Only actual usage is counted: a swipe or a song counts once it has been in use
+for at least ``misc.statistics_min_play_seconds`` (20 s by default). Cards that
+are swiped away again and songs that are skipped early leave no trace.
+
 The store is a plain helper (not a plugin package on its own): it is imported
 and fed by the already-loaded ``rfid`` reader and ``player`` components, and read
 out via RPC functions registered in the already-loaded ``misc`` package. This
@@ -32,6 +36,7 @@ logger = logging.getLogger('jb.stats')
 cfg = jukebox.cfghandler.get_handler('jukebox')
 
 DEFAULT_STATISTICS_FILE = '../../shared/settings/statistics.json'
+DEFAULT_MIN_PLAY_SECONDS = 20
 
 
 class StatisticsStore:
@@ -42,12 +47,22 @@ class StatisticsStore:
         self._loaded = False
         self._path = None
         self._data = {'cards': {}, 'songs': {}, 'history': {}}
+        self._pending_card = None
+        self._pending_token = 0
 
     def _resolve_path(self):
         try:
             return cfg.getn('misc', 'statistics_file', default=DEFAULT_STATISTICS_FILE)
         except Exception:
             return DEFAULT_STATISTICS_FILE
+
+    def min_play_seconds(self):
+        """Minimum time a card or song must be in use before it is counted."""
+        try:
+            return float(cfg.getn('misc', 'statistics_min_play_seconds',
+                                  default=DEFAULT_MIN_PLAY_SECONDS))
+        except Exception:
+            return float(DEFAULT_MIN_PLAY_SECONDS)
 
     def _ensure_loaded(self):
         if self._loaded:
@@ -86,10 +101,40 @@ class StatisticsStore:
         counters[key] = int(counters.get(key, 0)) + 1
 
     def count_card_swipe(self, card_id):
-        """Increment the swipe counter for a card id."""
+        """Register a card swipe; it is counted once the card stayed in use long enough.
+
+        A swipe that is replaced by another card before the minimum time has
+        passed is dropped, so briefly presented cards do not show up.
+        """
         if not card_id:
             return
         card_id = str(card_id)
+        delay = self.min_play_seconds()
+        with self._lock:
+            self._cancel_pending_card()
+            if delay <= 0:
+                self._record_card_swipe(card_id)
+                return
+            self._pending_token += 1
+            token = self._pending_token
+            timer = threading.Timer(delay, self._confirm_card_swipe, args=(card_id, token))
+            timer.daemon = True
+            self._pending_card = timer
+            timer.start()
+
+    def _cancel_pending_card(self):
+        if self._pending_card is not None:
+            self._pending_card.cancel()
+            self._pending_card = None
+
+    def _confirm_card_swipe(self, card_id, token):
+        with self._lock:
+            if token != self._pending_token:
+                return
+            self._pending_card = None
+            self._record_card_swipe(card_id)
+
+    def _record_card_swipe(self, card_id):
         with self._lock:
             self._ensure_loaded()
             now = time.time()
@@ -101,7 +146,11 @@ class StatisticsStore:
             self._save()
 
     def count_song_play(self, file, title=None, artist=None, album=None):
-        """Increment the play counter for a song, keyed by its file/uri."""
+        """Increment the play counter for a song, keyed by its file/uri.
+
+        The caller is expected to have watched the track for at least
+        #StatisticsStore.min_play_seconds before calling this.
+        """
         if not file:
             return
         with self._lock:
@@ -213,6 +262,7 @@ class StatisticsStore:
         """Clear all statistics and persist the empty store."""
         with self._lock:
             self._ensure_loaded()
+            self._cancel_pending_card()
             self._data = {'cards': {}, 'songs': {}, 'history': {}}
             self._save()
 

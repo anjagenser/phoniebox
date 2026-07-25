@@ -176,6 +176,12 @@ fileserver:
   enable: true
   # Port for the upload endpoint (POST http://<host>:<port>/upload)
   port: 8080
+misc:
+  # Usage statistics (swipes per card, plays per song) shown in the webapp
+  statistics_file: ../../shared/settings/statistics.json
+  # A card or song is counted only after being in use for this long (in seconds).
+  # Set to 0 to count every swipe and every started song right away
+  statistics_min_play_seconds: 20
 webapp:
   coverart_cache_path: ../../src/webapp/build/cover-cache
   # Load cover arts in Webapp. Change to false in case you have performance issue
