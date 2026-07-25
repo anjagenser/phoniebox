@@ -14,6 +14,7 @@ import SkipPreviousRoundedIcon from '@mui/icons-material/SkipPreviousRounded';
 
 import PlayerContext from '../../context/player/context';
 import request from '../../utils/request';
+import { songDisplayName, songFolderFromUri } from '../../utils/utils';
 
 const MINI_PLAYER_HEIGHT = 56;
 const NAV_HEIGHT = 65;
@@ -28,8 +29,13 @@ const MiniPlayer = () => {
   const isPlaying = playerstatus?.state === 'play';
   const songIsScheduled = !!playerstatus?.songid;
 
-  const title = playerstatus?.title || playerstatus?.file || t('player.display.no-song-in-queue');
-  const artist = playerstatus?.artist;
+  const title = songIsScheduled
+    ? (songDisplayName(playerstatus?.title, playerstatus?.file)
+       || t('player.display.unknown-title'))
+    : t('player.display.no-song-in-queue');
+  const artist = songIsScheduled
+    ? (playerstatus?.artist || songFolderFromUri(playerstatus?.file))
+    : '';
 
   return (
     <Paper

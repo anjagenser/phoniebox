@@ -332,7 +332,7 @@
     },
     "display": {
       "unknown-title": "Unknown title",
-      "unknown-artist": "Unknown artists",
+      "unknown-artist": "Unknown artist",
       "no-song-in-queue": "No song in queue"
     },
     "seekbar": {

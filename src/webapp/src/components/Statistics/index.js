@@ -36,11 +36,10 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 import Header from '../Header';
 import request from '../../utils/request';
 import { resolveCardDisplay } from '../Cards/display';
+import { songDisplayName, songFolderFromUri } from '../../utils/utils';
 
 const LIMIT = 10;
 const HISTORY_LIMIT = 3;
-
-const basename = (path) => (path ? path.split('/').pop() : '');
 
 const formatPeriod = (period, language) => {
   const [year, month] = period.split('-');
@@ -134,8 +133,8 @@ const HistoryPeriod = ({ cards, songs, cardLabel }) => {
               <HistoryRank
                 key={file}
                 rank={index + 1}
-                primary={songTitle || basename(file)}
-                secondary={artist || ''}
+                primary={songDisplayName(songTitle, file)}
+                secondary={artist || songFolderFromUri(file)}
                 count={count}
               />
             ))
@@ -328,8 +327,8 @@ const Statistics = () => {
                     key={file}
                     count={count}
                     max={maxSong}
-                    primary={title || basename(file)}
-                    secondary={artist || ''}
+                    primary={songDisplayName(title, file)}
+                    secondary={artist || songFolderFromUri(file)}
                     avatar={
                       <Avatar variant="rounded">
                         <MusicNoteIcon />

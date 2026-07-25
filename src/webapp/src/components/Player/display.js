@@ -6,6 +6,8 @@ import PlayerContext from '../../context/player/context';
 import Grid from '@mui/material/Grid';
 import Typography from '@mui/material/Typography';
 
+import { songDisplayName, songFolderFromUri } from '../../utils/utils';
+
 const Display = () => {
   const { t } = useTranslation();
   const { state: { playerstatus } } = useContext(PlayerContext);
@@ -17,18 +19,21 @@ const Display = () => {
     textOverflow: 'ellipsis',
   };
 
+  const hasSong = !!playerstatus?.songid;
+  const title = songDisplayName(playerstatus?.title, playerstatus?.file)
+    || t('player.display.unknown-title');
+  const details = [
+    playerstatus?.artist,
+    playerstatus?.album || songFolderFromUri(playerstatus?.file),
+  ].filter(Boolean).join(' • ');
+
   return (
     <Grid container>
       <Typography sx={dontBreak} component="h5" variant="h5">
-        {playerstatus?.songid
-          ? (playerstatus?.title || t('player.display.unknown-title'))
-          : t('player.display.no-song-in-queue')
-        }
+        {hasSong ? title : t('player.display.no-song-in-queue')}
       </Typography>
       <Typography sx={dontBreak} variant="subtitle1" color="textSecondary">
-        {playerstatus?.songid && (playerstatus?.artist || t('player.display.unknown-artist')) }
-        <span sx={{ marginLeft: '5px', marginRight: '5px' }}>&bull;</span>
-        {playerstatus?.songid && (playerstatus?.album || playerstatus?.file) }
+        {hasSong && (details || t('player.display.unknown-artist'))}
       </Typography>
     </Grid>
   );
