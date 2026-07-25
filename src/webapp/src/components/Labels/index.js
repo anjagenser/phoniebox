@@ -38,7 +38,7 @@ const Labels = () => {
   const [labels, setLabels] = useState([]);
   const [fit, setFit] = useState('cover');
   const [showCaptions, setShowCaptions] = useState(false);
-  const [rotation, setRotation] = useState(0);
+  const [rotation, setRotation] = useState(90);
   const [startOffset, setStartOffset] = useState(0);
   const [offsetX, setOffsetX] = useState(0);
   const [offsetY, setOffsetY] = useState(0);
