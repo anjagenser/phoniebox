@@ -13,6 +13,7 @@ import {
   PAGE_H,
   LABEL_W,
   LABEL_H,
+  CORNER_R,
   SLOTS_PER_SHEET,
   slotPosition,
   sheetCount,
@@ -24,7 +25,15 @@ const thumbKey = (label, fit, showCaptions) =>
   `${fit}|${showCaptions ? 1 : 0}|${label.rotation || 0}|${label.caption || ''}|${label.image || ''}`;
 
 const FilledSlot = ({ thumb, onRemove, onRotate, removeLabel, rotateLabel }) => (
-  <Box sx={{ position: 'absolute', inset: 0, backgroundColor: '#fff', overflow: 'hidden' }}>
+  <Box
+    sx={{
+      position: 'absolute',
+      inset: 0,
+      backgroundColor: '#fff',
+      overflow: 'hidden',
+      borderRadius: 'inherit',
+    }}
+  >
     {thumb && (
       <Box
         component="img"
@@ -89,6 +98,7 @@ const SheetPage = ({
       mx: 'auto',
       mb: 2,
       aspectRatio: `${PAGE_W} / ${PAGE_H}`,
+      containerType: 'inline-size',
       backgroundColor: '#f4f4f4',
       border: '1px solid rgba(255,255,255,0.25)',
       boxShadow: 3,
@@ -111,6 +121,7 @@ const SheetPage = ({
             width: pct(LABEL_W, PAGE_W),
             height: pct(LABEL_H, PAGE_H),
             border: '1px dashed rgba(120,120,120,0.55)',
+            borderRadius: `${(CORNER_R / PAGE_W) * 100}cqw`,
             boxSizing: 'border-box',
             backgroundColor: isUsed ? 'rgba(120,120,120,0.18)' : 'transparent',
           }}
