@@ -6,6 +6,9 @@ Keeps persistent counters for
 * how often each RFID card has been swiped
 * how often each song has been played
 
+Next to the all-time counters, per-month buckets are kept so historic top lists
+(per month and, aggregated from the months, per year) can be reported.
+
 The store is a plain helper (not a plugin package on its own): it is imported
 and fed by the already-loaded ``rfid`` reader and ``player`` components, and read
 out via RPC functions registered in the already-loaded ``misc`` package. This
@@ -38,7 +41,7 @@ class StatisticsStore:
         self._lock = threading.RLock()
         self._loaded = False
         self._path = None
-        self._data = {'cards': {}, 'songs': {}}
+        self._data = {'cards': {}, 'songs': {}, 'history': {}}
 
     def _resolve_path(self):
         try:
@@ -53,7 +56,7 @@ class StatisticsStore:
             if self._loaded:
                 return
             self._path = self._resolve_path()
-            data = {'cards': {}, 'songs': {}}
+            data = {'cards': {}, 'songs': {}, 'history': {}}
             try:
                 if os.path.isfile(self._path):
                     with open(self._path) as stream:
@@ -61,6 +64,7 @@ class StatisticsStore:
                     if isinstance(stored, dict):
                         data['cards'] = stored.get('cards', {}) or {}
                         data['songs'] = stored.get('songs', {}) or {}
+                        data['history'] = stored.get('history', {}) or {}
             except Exception as e:
                 logger.error(f"Could not read statistics file '{self._path}': {e}")
             self._data = data
@@ -75,6 +79,12 @@ class StatisticsStore:
         except Exception as e:
             logger.error(f"Could not write statistics file '{self._path}': {e}")
 
+    def _count_in_month(self, kind, key, timestamp):
+        month = time.strftime('%Y-%m', time.localtime(timestamp))
+        bucket = self._data['history'].setdefault(month, {})
+        counters = bucket.setdefault(kind, {})
+        counters[key] = int(counters.get(key, 0)) + 1
+
     def count_card_swipe(self, card_id):
         """Increment the swipe counter for a card id."""
         if not card_id:
@@ -82,10 +92,12 @@ class StatisticsStore:
         card_id = str(card_id)
         with self._lock:
             self._ensure_loaded()
+            now = time.time()
             entry = self._data['cards'].get(card_id, {'count': 0})
             entry['count'] = int(entry.get('count', 0)) + 1
-            entry['last_swiped'] = time.time()
+            entry['last_swiped'] = now
             self._data['cards'][card_id] = entry
+            self._count_in_month('cards', card_id, now)
             self._save()
 
     def count_song_play(self, file, title=None, artist=None, album=None):
@@ -94,9 +106,10 @@ class StatisticsStore:
             return
         with self._lock:
             self._ensure_loaded()
+            now = time.time()
             entry = self._data['songs'].get(file, {'count': 0})
             entry['count'] = int(entry.get('count', 0)) + 1
-            entry['last_played'] = time.time()
+            entry['last_played'] = now
             if title:
                 entry['title'] = title
             if artist:
@@ -104,17 +117,63 @@ class StatisticsStore:
             if album:
                 entry['album'] = album
             self._data['songs'][file] = entry
+            self._count_in_month('songs', file, now)
             self._save()
 
-    def get_statistics(self, limit=None):
+    def _song_info(self, file, count):
+        entry = self._data['songs'].get(file, {})
+        return {
+            'file': file,
+            'count': int(count),
+            'title': entry.get('title'),
+            'artist': entry.get('artist'),
+            'album': entry.get('album'),
+        }
+
+    def _top_of_bucket(self, counters, kind, limit):
+        items = sorted(counters.get(kind, {}).items(), key=lambda i: (-int(i[1]), i[0]))
+        if limit is not None and limit > 0:
+            items = items[:limit]
+        if kind == 'songs':
+            return [self._song_info(file, count) for file, count in items]
+        return [{'card_id': card_id, 'count': int(count)} for card_id, count in items]
+
+    def _history(self, limit):
+        months = {}
+        years = {}
+        for month, bucket in self._data['history'].items():
+            if not isinstance(bucket, dict):
+                continue
+            months[month] = bucket
+            year = years.setdefault(month[:4], {'cards': {}, 'songs': {}})
+            for kind in ('cards', 'songs'):
+                for key, count in (bucket.get(kind) or {}).items():
+                    year[kind][key] = year[kind].get(key, 0) + int(count)
+
+        def periods(buckets):
+            return [
+                {
+                    'period': period,
+                    'cards': self._top_of_bucket(bucket, 'cards', limit),
+                    'songs': self._top_of_bucket(bucket, 'songs', limit),
+                }
+                for period, bucket in sorted(buckets.items(), reverse=True)
+            ]
+
+        return {'months': periods(months), 'years': periods(years)}
+
+    def get_statistics(self, limit=None, history_limit=3):
         """Return sorted statistics.
 
-        :param limit: Optionally limit each list to the top ``limit`` entries.
-        :return: dict with ``cards`` and ``songs`` lists (most frequent first)
-            and ``total_swipes`` / ``total_plays`` totals.
+        :param limit: Optionally limit each all-time list to the top ``limit`` entries.
+        :param history_limit: Number of entries per historic period (month / year).
+        :return: dict with ``cards`` and ``songs`` lists (most frequent first),
+            ``total_swipes`` / ``total_plays`` totals and a ``history`` dict with
+            ``months`` and ``years`` lists (most recent first).
         """
         with self._lock:
             self._ensure_loaded()
+            history = self._history(history_limit)
             cards = [
                 {
                     'card_id': card_id,
@@ -147,13 +206,14 @@ class StatisticsStore:
             'songs': songs,
             'total_swipes': total_swipes,
             'total_plays': total_plays,
+            'history': history,
         }
 
     def reset(self):
         """Clear all statistics and persist the empty store."""
         with self._lock:
             self._ensure_loaded()
-            self._data = {'cards': {}, 'songs': {}}
+            self._data = {'cards': {}, 'songs': {}, 'history': {}}
             self._save()
 
 

@@ -129,14 +129,16 @@ def set_app_settings(settings={}):
 
 
 @plugin.register
-def get_statistics(limit: int = None):
+def get_statistics(limit: int = None, history_limit: int = 3):
     """Return usage statistics: swipe counts per card and play counts per song.
 
-    :param limit: Optionally limit each list to the top ``limit`` entries
-    :return: dict with ``cards`` and ``songs`` lists (most frequent first) plus
-        ``total_swipes`` and ``total_plays`` totals
+    :param limit: Optionally limit each all-time list to the top ``limit`` entries
+    :param history_limit: Number of entries per historic period (month / year)
+    :return: dict with ``cards`` and ``songs`` lists (most frequent first),
+        ``total_swipes`` and ``total_plays`` totals and a ``history`` dict with
+        ``months`` and ``years`` lists (most recent first)
     """
-    return stats.get_statistics(limit=limit)
+    return stats.get_statistics(limit=limit, history_limit=history_limit)
 
 
 @plugin.register

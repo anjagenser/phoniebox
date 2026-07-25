@@ -18,10 +18,17 @@ import {
   ListItem,
   ListItemAvatar,
   ListItemText,
+  MenuItem,
+  Paper,
+  Tab,
+  Tabs,
+  TextField,
   Typography,
 } from '@mui/material';
 
 import BookmarkIcon from '@mui/icons-material/Bookmark';
+import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import DeleteSweepIcon from '@mui/icons-material/DeleteSweep';
 import MusicNoteIcon from '@mui/icons-material/MusicNote';
 import RefreshIcon from '@mui/icons-material/Refresh';
@@ -30,9 +37,17 @@ import Header from '../Header';
 import request from '../../utils/request';
 import { resolveCardDisplay } from '../Cards/display';
 
-const LIMIT = 20;
+const LIMIT = 10;
+const HISTORY_LIMIT = 3;
 
 const basename = (path) => (path ? path.split('/').pop() : '');
+
+const formatPeriod = (period, language) => {
+  const [year, month] = period.split('-');
+  if (!month) return year;
+  const date = new Date(Number(year), Number(month) - 1, 1);
+  return date.toLocaleDateString(language, { month: 'long', year: 'numeric' });
+};
 
 const StatRow = ({ avatar, primary, secondary, count, max }) => {
   const percent = max > 0 ? Math.round((count / max) * 100) : 0;
@@ -61,20 +76,99 @@ const StatRow = ({ avatar, primary, secondary, count, max }) => {
   );
 };
 
-const Statistics = () => {
+const HistoryRank = ({ rank, primary, secondary, count }) => (
+  <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1, minWidth: 0 }}>
+    <Typography variant="body2" color="text.secondary" sx={{ width: 16 }}>
+      {`${rank}.`}
+    </Typography>
+    <Typography variant="body2" noWrap sx={{ flexGrow: 1, minWidth: 0 }}>
+      {primary}
+      {secondary ? (
+        <Typography
+          component="span"
+          variant="caption"
+          color="text.secondary"
+          sx={{ ml: 0.5 }}
+        >
+          {secondary}
+        </Typography>
+      ) : null}
+    </Typography>
+    <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+      {count}
+    </Typography>
+  </Box>
+);
+
+const HistoryPeriod = ({ cards, songs, cardLabel }) => {
   const { t } = useTranslation();
+
+  return (
+    <Paper variant="outlined" sx={{ p: 1.5, mb: 1 }}>
+      <Grid container spacing={2}>
+        <Grid item xs={12} sm={6} sx={{ minWidth: 0 }}>
+          <Typography variant="caption" color="text.secondary">
+            {t('statistics.top-cards')}
+          </Typography>
+          {cards.length ? (
+            cards.map(({ card_id: cardId, count }, index) => (
+              <HistoryRank
+                key={cardId}
+                rank={index + 1}
+                primary={cardLabel(cardId)}
+                count={count}
+              />
+            ))
+          ) : (
+            <Typography variant="body2" color="text.secondary">
+              {t('statistics.no-cards')}
+            </Typography>
+          )}
+        </Grid>
+        <Grid item xs={12} sm={6} sx={{ minWidth: 0 }}>
+          <Typography variant="caption" color="text.secondary">
+            {t('statistics.top-songs')}
+          </Typography>
+          {songs.length ? (
+            songs.map(({ file, title: songTitle, artist, count }, index) => (
+              <HistoryRank
+                key={file}
+                rank={index + 1}
+                primary={songTitle || basename(file)}
+                secondary={artist || ''}
+                count={count}
+              />
+            ))
+          ) : (
+            <Typography variant="body2" color="text.secondary">
+              {t('statistics.no-songs')}
+            </Typography>
+          )}
+        </Grid>
+      </Grid>
+    </Paper>
+  );
+};
+
+const Statistics = () => {
+  const { t, i18n } = useTranslation();
 
   const [stats, setStats] = useState(null);
   const [cardDetails, setCardDetails] = useState({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [resetOpen, setResetOpen] = useState(false);
+  const [historyTab, setHistoryTab] = useState('months');
+  const [selectedPeriod, setSelectedPeriod] = useState({ months: null, years: null });
 
   const load = useCallback(async () => {
     setIsLoading(true);
     setError(null);
 
-    const { result, error: statsError } = await request('getStatistics', { limit: LIMIT });
+    const { result, error: statsError } = await request('getStatistics', {
+      limit: LIMIT,
+      history_limit: HISTORY_LIMIT,
+    });
 
     if (statsError) {
       setError(statsError);
@@ -87,8 +181,16 @@ const Statistics = () => {
     const { result: cards } = await request('cardsList');
     const cardsMap = cards || {};
     const details = {};
+    const history = result.history || {};
+    const cardIds = new Set(
+      [
+        ...(result.cards || []),
+        ...(history.months || []).flatMap(({ cards: periodCards }) => periodCards || []),
+        ...(history.years || []).flatMap(({ cards: periodCards }) => periodCards || []),
+      ].map(({ card_id: cardId }) => cardId)
+    );
     await Promise.all(
-      (result.cards || []).map(async ({ card_id: cardId }) => {
+      [...cardIds].map(async (cardId) => {
         const card = cardsMap[cardId];
         const resolved = card
           ? await resolveCardDisplay(card)
@@ -112,6 +214,17 @@ const Statistics = () => {
 
   const cards = (stats && stats.cards) || [];
   const songs = (stats && stats.songs) || [];
+  const history = (stats && stats.history) || {};
+  const periods = (historyTab === 'years' ? history.years : history.months) || [];
+  // fall back to the newest period whenever the pick is gone (tab switch, reload, reset)
+  const activeIndex = Math.max(
+    0,
+    periods.findIndex(({ period }) => period === selectedPeriod[historyTab])
+  );
+  const activePeriod = periods[activeIndex];
+
+  const pickPeriod = (period) =>
+    setSelectedPeriod((current) => ({ ...current, [historyTab]: period }));
   const maxCard = cards.length ? cards[0].count : 0;
   const maxSong = songs.length ? songs[0].count : 0;
   const isEmpty = !isLoading && !error && cards.length === 0 && songs.length === 0;
@@ -175,7 +288,7 @@ const Statistics = () => {
         <Grid container>
           <Grid item xs={12} md={6}>
             <Typography variant="subtitle1" sx={{ px: 1, mt: 1, fontWeight: 'bold' }}>
-              {t('statistics.top-cards')}
+              {t('statistics.top-cards-limited', { limit: LIMIT })}
             </Typography>
             {cards.length ? (
               <List sx={{ width: '100%' }}>
@@ -206,7 +319,7 @@ const Statistics = () => {
 
           <Grid item xs={12} md={6}>
             <Typography variant="subtitle1" sx={{ px: 1, mt: 1, fontWeight: 'bold' }}>
-              {t('statistics.top-songs')}
+              {t('statistics.top-songs-limited', { limit: LIMIT })}
             </Typography>
             {songs.length ? (
               <List sx={{ width: '100%' }}>
@@ -228,6 +341,67 @@ const Statistics = () => {
             ) : (
               <Typography sx={{ px: 1 }} color="text.secondary">
                 {t('statistics.no-songs')}
+              </Typography>
+            )}
+          </Grid>
+
+          <Grid item xs={12} sx={{ px: 1, mt: 2 }}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
+              {t('statistics.history.title', { limit: HISTORY_LIMIT })}
+            </Typography>
+            <Tabs
+              value={historyTab}
+              onChange={(event, value) => setHistoryTab(value)}
+              sx={{ mb: 1 }}
+            >
+              <Tab value="months" label={t('statistics.history.per-month')} />
+              <Tab value="years" label={t('statistics.history.per-year')} />
+            </Tabs>
+            {activePeriod ? (
+              <>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                  <IconButton
+                    aria-label={t('statistics.history.older')}
+                    onClick={() => pickPeriod(periods[activeIndex + 1].period)}
+                    disabled={activeIndex >= periods.length - 1}
+                  >
+                    <ChevronLeftIcon />
+                  </IconButton>
+                  <TextField
+                    select
+                    size="small"
+                    label={t(
+                      historyTab === 'years'
+                        ? 'statistics.history.select-year'
+                        : 'statistics.history.select-month'
+                    )}
+                    value={activePeriod.period}
+                    onChange={(event) => pickPeriod(event.target.value)}
+                    sx={{ minWidth: 180 }}
+                  >
+                    {periods.map(({ period }) => (
+                      <MenuItem key={period} value={period}>
+                        {formatPeriod(period, i18n.language)}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                  <IconButton
+                    aria-label={t('statistics.history.newer')}
+                    onClick={() => pickPeriod(periods[activeIndex - 1].period)}
+                    disabled={activeIndex <= 0}
+                  >
+                    <ChevronRightIcon />
+                  </IconButton>
+                </Box>
+                <HistoryPeriod
+                  cards={activePeriod.cards || []}
+                  songs={activePeriod.songs || []}
+                  cardLabel={cardLabel}
+                />
+              </>
+            ) : (
+              <Typography color="text.secondary">
+                {t('statistics.history.empty')}
               </Typography>
             )}
           </Grid>

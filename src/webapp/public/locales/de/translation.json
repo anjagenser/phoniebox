@@ -286,13 +286,25 @@
     "title": "Statistik",
     "summary": "{{swipes}} Kartenscans, {{plays}} gespielte Songs",
     "top-cards": "Meistgescannte Karten",
+    "top-cards-limited": "Meistgescannte Karten (Top {{limit}})",
     "top-songs": "Meistgespielte Songs",
+    "top-songs-limited": "Meistgespielte Songs (Top {{limit}})",
     "no-cards": "Noch keine Kartenscans erfasst.",
     "no-songs": "Noch keine Songs gespielt.",
     "empty": "Noch keine Statistik erfasst. Scanne eine Karte oder spiele einen Song ab.",
     "loading-error": "Die Statistik konnte nicht geladen werden.",
     "refresh": "Aktualisieren",
     "reset": "Zurücksetzen",
+    "history": {
+      "title": "Verlauf (Top {{limit}})",
+      "per-month": "Pro Monat",
+      "per-year": "Pro Jahr",
+      "select-month": "Monat",
+      "select-year": "Jahr",
+      "older": "Frühere Periode",
+      "newer": "Spätere Periode",
+      "empty": "Noch keine historischen Daten erfasst."
+    },
     "reset-dialog": {
       "title": "Statistik zurücksetzen?",
       "description": "Dadurch werden alle erfassten Scan- und Wiedergabezähler dauerhaft gelöscht. Dies kann nicht rückgängig gemacht werden."

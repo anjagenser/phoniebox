@@ -455,7 +455,7 @@ const commands = {
   getStatistics: {
     _package: 'misc',
     plugin: 'get_statistics',
-    argKeys: ['limit'],
+    argKeys: ['limit', 'history_limit'],
   },
 
   resetStatistics: {
