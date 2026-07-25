@@ -7,14 +7,17 @@
 
 Before you can install the Phoniebox software, you need to prepare your Raspberry Pi.
 
-This instruction uses the official [Raspberry Pi Imager](https://www.raspberrypi.com/software/). We recommend using the latest [**Legacy Lite**](https://www.raspberrypi.org/software/operating-systems/#raspberry-pi-os-legacy) release image.
+This instruction uses the official [Raspberry Pi Imager](https://www.raspberrypi.com/software/). Use a **Lite** image (no desktop environment); a 64-bit image is recommended on Pi 3 and newer.
+
+> [!IMPORTANT]
+> For **Spotify support** you need **Raspberry Pi OS Trixie (Debian 13) Lite, 64-bit**. Mopidy-Spotify 5 requires Python 3.13, which older images do not provide (Bookworm ships Python 3.11). Without Spotify, older Lite images work as well.
 
 ### For Raspberry Pi Imager Version >= 2.0.0
 
 1. Connect a Micro SD card to your computer (preferable an SD card with high read throughput)
 1. Start the Raspberry Pi Imager
 1. Model: select "No filtering"
-1. OS: select **Raspberry Pi OS (other)** and then **Raspberry Pi OS (Legacy, 32-bit) Lite** (no desktop environment).
+1. OS: select **Raspberry Pi OS (other)** and then **Raspberry Pi OS Lite (64-bit)** (no desktop environment).
 1. Storage: Select your Micro SD card (your card will be formatted)
 1. Customize:
     * Hostname: choose hostname for the network (e.g. "phoniebox")
@@ -32,7 +35,7 @@ This instruction uses the official [Raspberry Pi Imager](https://www.raspberrypi
 1. Connect a Micro SD card to your computer (preferable an SD card with high read throughput)
 1. Start the Raspberry Pi Imager
 1. Click on "Raspberry Pi Device" and select "No filtering"
-1. As operating system select **Raspberry Pi OS (other)** and then **Raspberry Pi OS (Legacy, 32-bit) Lite** (no desktop environment).
+1. As operating system select **Raspberry Pi OS (other)** and then **Raspberry Pi OS Lite (64-bit)** (no desktop environment).
 1. Select your Micro SD card (your card will be formatted)
 1. After you click `Next`, a prompt will ask you if you like to customize the OS settings
     * Click `Edit Settings`
@@ -156,6 +159,37 @@ This will install the latest **pre-release** from the *future3/develop* branch.
 ```bash
 cd; GIT_BRANCH='future3/develop' bash <(wget -qO- https://raw.githubusercontent.com/MiczFlor/RPi-Jukebox-RFID/future3/develop/installation/install-jukebox.sh)
 ```
+
+### What the installer asks
+
+The installation is interactive. It first asks a series of questions, then shows a
+**summary of the components of your box** which you have to confirm before anything is
+installed. Answer `n` at the summary to go through all questions again, or `q` to quit.
+
+| Question | Note |
+|----------|------|
+| Disable IPv6 | Recommended, unless you use IPv6 |
+| Static IP | Not possible together with the autohotspot |
+| Autohotspot | Opens an own WiFi when no known network is available |
+| Disable Bluetooth | Keep it enabled for Bluetooth speakers or buttons |
+| Audio output | Sound card HAT (choose the board), USB sound card, on-board jack/HDMI or Bluetooth only. A HAT overlay is configured during the installation and the on-chip audio is switched off |
+| Spotify | Needs Trixie, a Spotify Premium account and API credentials. Replaces MPD with Mopidy |
+| RFID reader | The reader type is selected later during the installation |
+| Samba | Network share to copy audio files to the box |
+| Web App | The user interface in the browser |
+| Kiosk mode | Only with a screen attached to the Pi |
+
+### Install a local source tree
+
+If the source is already on the Pi - a locally modified version, or one that is not
+published on GitHub - install exactly that tree instead of downloading it:
+
+```bash
+cd ~/RPi-Jukebox-RFID && bash installation/install-jukebox.sh
+```
+
+Started from inside a source tree, the installer skips the download, initializes the
+directory as a local git repository and builds the Web App on the device.
 
 ### Development
 

@@ -137,6 +137,11 @@ _jukebox_core_precompile_bytecode() {
 
 _jukebox_core_install_settings() {
   print_lc "  Register Jukebox settings"
+  # The directories below 'shared' only contain a .gitkeep placeholder, so they can be
+  # missing in a source tree that was copied without them. Without this the settings
+  # copy fails silently and the installation aborts later in the verification.
+  mkdir -p "${SETTINGS_PATH}" "${SHARED_PATH}/audiofolders" "${SHARED_PATH}/playlists" \
+           "${SHARED_PATH}/logs" || exit_on_error "ERROR: Cannot create shared directories."
   cp -f "${INSTALLATION_PATH}/resources/default-settings/jukebox.default.yaml" "${SETTINGS_PATH}/jukebox.yaml"
   sed -i "s|%%JUKEBOX_AUDIOFOLDERS_PATH%%|${SHARED_PATH}/audiofolders|g" "${SETTINGS_PATH}/jukebox.yaml"
   cp -f "${INSTALLATION_PATH}/resources/default-settings/logger.default.yaml" "${SETTINGS_PATH}/logger.yaml"
