@@ -183,6 +183,10 @@ Do you want to enable Spotify support? [y/N]"
             SETUP_MOPIDY=true
             SETUP_MPD=false
 
+            if [[ -n "${SPOTIFY_CLIENT_ID}" && -n "${SPOTIFY_CLIENT_SECRET}" ]]; then
+                print_c "Using the Spotify credentials that are already set."
+            fi
+
             while [[ -z "${SPOTIFY_CLIENT_ID}" ]]; do
                 print_c "Enter your Spotify client_id:"
                 read -r SPOTIFY_CLIENT_ID
@@ -382,12 +386,9 @@ Enter your choice [1-4]:"
       AUDIO_HAT="none"
       DISABLE_ONBOARD_AUDIO=true
       ;;
-    4)
-      AUDIO_HAT="none"
-      DISABLE_ONBOARD_AUDIO=false
-      ;;
-    *)
-      # Default (also for an empty answer): keep the Pi as it comes
+    3|4|*)
+      # On-board output, Bluetooth only, and the default for an empty or invalid
+      # answer: leave the Pi's audio as it comes
       AUDIO_HAT="none"
       DISABLE_ONBOARD_AUDIO=false
       ;;
