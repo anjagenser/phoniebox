@@ -202,6 +202,11 @@ class PlayerMPD:
         self._stats_song_counted = False
         self._stats_song_tick = None
 
+        # idle audio stream release, see _release_idle_audio_stream
+        self._idle_audio_since = None
+        self._idle_audio_released = False
+        self._idle_audio_disabled = False
+
         # The timeout refer to the low-level socket time-out
         # If these are too short and the response is not fast enough (due to the PI being busy),
         # the current MPC command times out. Leave these at blocking calls, since we do not react on a timed out socket
@@ -404,6 +409,7 @@ class PlayerMPD:
             self.current_folder_status["PLAYSTATUS"] = self.mpd_status['state']
 
         self._count_song_statistic()
+        self._release_idle_audio_stream()
 
         # Delete the volume key to avoid confusion
         # Volume is published via the 'volume' component!
@@ -453,6 +459,57 @@ class PlayerMPD:
             )
         except Exception as e:
             logger.error(f"Could not record song play statistic: {e}")
+
+    def _release_idle_audio_stream(self):
+        """Drop the player backend's audio stream after a while without playback.
+
+        Mopidy leaves its PulseAudio playback stream open and uncorked when a
+        track ends. PipeWire keeps reading that stream's buffer, so the last
+        seconds of the track can surface hours later without anyone touching a
+        card. Dropping the idle stream removes that buffer; Mopidy opens a fresh
+        stream on the next playback. Set 'release_audio_after' to 0 to disable.
+        """
+        if self.mpd_status.get('state') != 'stop':
+            self._idle_audio_since = None
+            self._idle_audio_released = False
+            return
+        if self._idle_audio_disabled or self._idle_audio_released:
+            return
+        if getattr(self, 'player_backend', 'mpd') != 'mopidy':
+            self._idle_audio_disabled = True
+            return
+
+        delay = float(cfg.setndefault('playermpd', 'release_audio_after', value=60))
+        now = time.monotonic()
+        if delay <= 0:
+            self._idle_audio_disabled = True
+            return
+        if self._idle_audio_since is None:
+            self._idle_audio_since = now
+            return
+        if now - self._idle_audio_since >= delay:
+            self._idle_audio_released = True
+            self._drop_audio_streams('Mopidy', delay)
+
+    def _drop_audio_streams(self, client_name: str, delay: float):
+        """Disconnect all PipeWire playback streams of an application."""
+        try:
+            dump = subprocess.run(['pw-dump'], capture_output=True, text=True, timeout=10, check=True)
+            nodes = json.loads(dump.stdout)
+            for node in nodes:
+                props = (node.get('info') or {}).get('props') or {}
+                if (props.get('media.class') != 'Stream/Output/Audio'
+                        or props.get('application.name') != client_name):
+                    continue
+                subprocess.run(['pw-cli', 'destroy', str(node['id'])],
+                               capture_output=True, text=True, timeout=10, check=True)
+                logger.debug(f"Released idle audio stream of '{client_name}' "
+                             f"(node {node['id']}) after {delay:.0f}s without playback")
+        except FileNotFoundError:
+            logger.info("PipeWire tools not available; not releasing idle audio streams")
+            self._idle_audio_disabled = True
+        except (subprocess.SubprocessError, OSError, json.JSONDecodeError) as e:
+            logger.warning(f"Could not release idle audio streams of '{client_name}': {e}")
 
     # MPD can play absolute paths but can find songs in its database only by relative path
     # This function aims to prepare the song_url accordingly

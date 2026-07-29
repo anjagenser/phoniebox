@@ -99,6 +99,9 @@ playermpd:
   stopped_prev_action: prev
   # Must be one of: 'none', 'next', 'rewind':
   stopped_next_action: next
+  # Seconds without playback after which the Mopidy audio stream is dropped, so
+  # PipeWire cannot replay leftover audio from its buffer. 0 disables it.
+  release_audio_after: 60
 rpc:
   tcp_port: 5555
   websocket_port: 5556
