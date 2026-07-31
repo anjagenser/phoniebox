@@ -116,6 +116,24 @@ _uri_details_cache = {}
 
 _uri_tracks_cache = {}
 
+# Schemes that address a file inside the local music library
+_LOCAL_URI_RE = re.compile(r'^(local|file):', re.IGNORECASE)
+# A backend URI is 'scheme://...' or 'scheme:type:id'. Requiring that second part keeps
+# a file name that merely contains a colon from being mistaken for a URI.
+_REMOTE_URI_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9+.\-]*:(//|[a-zA-Z][a-zA-Z0-9+.\-]*:)')
+_LOCAL_URI_PREFIX_RE = re.compile(r'^(file://|[a-zA-Z][a-zA-Z0-9+.\-]*:(track|directory|album|artist|playlist):)',
+                                 re.IGNORECASE)
+
+
+def uri_to_relpath(uri: str) -> str:
+    """Convert a backend URI into a path relative to the music library.
+
+    Mopidy reports the playing file as a URL-encoded URI, e.g.
+    ``local:track:My%20Folder/My%20Song.mp3``. Cover art and file lookups need
+    the plain relative path. Values without a URI scheme are returned unchanged.
+    """
+    return _LOCAL_URI_PREFIX_RE.sub('', urllib.parse.unquote(uri or ''))
+
 
 class MpdLock:
     def __init__(self, client: mpd.MPDClient, host: str, port: int):
@@ -1090,7 +1108,21 @@ class PlayerMPD:
 
     @plugs.tag
     def get_single_coverart(self, song_url):
-        mp3_file_path = Path(components.player.get_music_library_path(), song_url).expanduser()
+        """Return the cover-art cache filename for a song, or '' if there is none.
+
+        ``song_url`` is either a path relative to the music library (as the library
+        views use it) or a backend URI as reported in the player status, e.g.
+        ``local:track:My%20Folder/01.mp3`` or ``spotify:track:...``. Without
+        translating the URI the file was never found, and the failed lookup used to
+        leave a no-art marker in the cache that also hid the cover from the
+        library views.
+        """
+        if _REMOTE_URI_RE.match(song_url or '') and not _LOCAL_URI_RE.match(song_url):
+            # Remote track (e.g. Spotify): cover comes from the backend's image API
+            return self._resolve_uri_image(song_url) or ''
+
+        relpath = uri_to_relpath(song_url)
+        mp3_file_path = Path(components.player.get_music_library_path(), relpath).expanduser()
         cache_filename = self.coverart_cache_manager.get_cache_filename(mp3_file_path)
 
         return cache_filename

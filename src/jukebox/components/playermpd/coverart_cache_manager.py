@@ -46,9 +46,14 @@ class CoverartCacheManager:
                 return candidate.name
         return None
 
+    def _cache_key_for_path(self, mp3_file_path: str) -> str:
+        # Key on the full path, not just the file name: album folders commonly use
+        # track numbers as file names, so a stem like '01' collided between albums
+        # and they all ended up sharing the cover of whichever was cached first.
+        return self.generate_cache_key(str(mp3_file_path))
+
     def get_cache_filename(self, mp3_file_path: str) -> str:
-        base_filename = Path(mp3_file_path).stem
-        cache_key = self.generate_cache_key(base_filename)
+        cache_key = self._cache_key_for_path(mp3_file_path)
 
         hit = self._find_cached(cache_key)
         if hit is not None:
@@ -105,8 +110,13 @@ class CoverartCacheManager:
             logger.debug(f"Cached remote cover: {cache_filename}")
 
     def _save_to_cache(self, mp3_file_path: str):
-        base_filename = Path(mp3_file_path).stem
-        cache_key = self.generate_cache_key(base_filename)
+        # No no-art marker for a path that does not exist: that is a bad lookup, not a
+        # song without cover art, and the marker would suppress all later lookups.
+        if not Path(mp3_file_path).exists():
+            logger.warning(f"No cover art lookup for non-existing file: {mp3_file_path}")
+            return None
+
+        cache_key = self._cache_key_for_path(mp3_file_path)
 
         file_extension, data = self._extract_album_art(mp3_file_path)
         if file_extension == NO_COVER_ART_EXTENSION:  # Check if cover has been added as separate file in folder

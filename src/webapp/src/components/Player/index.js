@@ -27,21 +27,57 @@ const Player = () => {
   const { show_covers } = settings;
 
   useEffect(() => {
-    const getCoverArt = async () => {
+    // The cover art is extracted in a background thread, so the first lookup of a
+    // yet uncached song answers CACHE_PENDING. Retry a few times before giving up.
+    const PENDING_RETRIES = 3;
+    const PENDING_RETRY_DELAY = 700;
+
+    let active = true;
+    let retryTimer;
+
+    const clearCover = () => {
+      setCoverImage(undefined);
+      setBackgroundImage('none');
+    };
+
+    const getCoverArt = async (attempt = 0) => {
       const { result } = await request('getSingleCoverArt', { song_url: file });
-      if (result) {
-        setCoverImage(`/cover-cache/${result}`);
-        setBackgroundImage([
-          'linear-gradient(to bottom, rgba(18, 18, 18, 0.5), rgba(18, 18, 18, 1))',
-          `url(/cover-cache/${result})`
-        ].join(','));
-      };
+      if (!active) return;
+
+      if (result === 'CACHE_PENDING') {
+        if (attempt < PENDING_RETRIES) {
+          retryTimer = setTimeout(() => getCoverArt(attempt + 1), PENDING_RETRY_DELAY);
+          return;
+        }
+        clearCover();
+        return;
+      }
+
+      // A song without cover art answers with an empty result. Clear the image,
+      // otherwise the cover of the previously played card stays on screen.
+      if (!result) {
+        clearCover();
+        return;
+      }
+
+      setCoverImage(`/cover-cache/${result}`);
+      setBackgroundImage([
+        'linear-gradient(to bottom, rgba(18, 18, 18, 0.5), rgba(18, 18, 18, 1))',
+        `url(/cover-cache/${result})`
+      ].join(','));
     }
 
     if (file && show_covers) {
       getCoverArt();
+    } else {
+      clearCover();
     }
-  }, [file]);
+
+    return () => {
+      active = false;
+      clearTimeout(retryTimer);
+    };
+  }, [file, show_covers]);
 
   return (
     <Grid
