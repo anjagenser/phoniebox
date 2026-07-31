@@ -2,6 +2,7 @@ import logging
 import threading
 import time
 import importlib
+import traceback
 from typing import Callable
 from enum import Enum
 
@@ -282,13 +283,23 @@ class ReaderRunner(threading.Thread):
                                 # TODO: This call happens from the reader thread, which is not necessarily what we want ...
                                 # TODO: Change to RPC call to transfer execution into main thread
                                 rfid_card_detect_callbacks.run_callbacks(card_id, RfidCardDetectState.isRegistered)
-                                plugs.call_ignore_errors(card_action['package'], card_action['plugin'], card_action['method'],
-                                                         args=card_action['args'], kwargs=card_action['kwargs'])
+                                # Errors are caught here rather than via plugs.call_ignore_errors() so the
+                                # user gets told the swipe failed instead of it only reaching the log
+                                try:
+                                    plugs.call(card_action['package'], card_action['plugin'], card_action['method'],
+                                               args=card_action['args'], kwargs=card_action['kwargs'])
+                                except Exception as e:
+                                    self._logger.error(f"Card '{card_id}' action failed: "
+                                                       f"{e.__class__.__name__}: {e}")
+                                    self._logger.debug(f"Detailed reason:\n{traceback.format_exc()}")
+                                    publishing.notify('error', 'player.toasts.card-failed',
+                                                      reason=f"{e.__class__.__name__}: {e}")
 
                         else:
                             rfid_card_detect_callbacks.run_callbacks(card_id, RfidCardDetectState.isUnkown)
                             self._logger.info(f"Unknown card: '{card_id}'")
                             self.publisher.send(self.topic, card_id)
+                            publishing.notify('warning', 'player.toasts.card-unknown', card=card_id)
                     elif self._cfg_log_ignored_cards is True:
                         self._logger.debug(f"'Ignoring card id {card_id} due to same-card-delay ({self._cfg_same_id_delay}s)")
                     previous_time = time.time()

@@ -342,6 +342,12 @@
       "slider": "Volume Slider",
       "mute": "Mute volume",
       "unmute": "Unmute volume"
+    },
+    "toasts": {
+      "card-failed": "Card could not be played: {{reason}}",
+      "card-unknown": "Unknown card {{card}}, not assigned to any content yet",
+      "folder-empty": "Nothing playable in folder \"{{folder}}\"",
+      "uri-empty": "Nothing playable found for \"{{uri}}\""
     }
   },
   "settings": {

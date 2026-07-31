@@ -6,6 +6,7 @@ import AppSettingsProvider from './context/appsettings';
 import PubSubProvider from './context/pubsub';
 import PlayerProvider from './context/player';
 import ToastProvider from './context/toast';
+import BackendNotifications from './context/toast/notifications';
 import Router from './router';
 
 function App() {
@@ -14,6 +15,7 @@ function App() {
       <PlayerProvider>
         <AppSettingsProvider>
           <ToastProvider>
+            <BackendNotifications />
             <Grid
               alignItems="center"
               container

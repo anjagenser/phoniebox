@@ -620,6 +620,19 @@ class PlayerMPD:
         with self.mpd_lock:
             self.mpd_client.pause(state)
 
+    def _notify_if_queue_empty(self, key: str, **params) -> None:
+        """Tell the WebApp when a play request left the queue empty
+
+        A missing folder or a URI the backend cannot resolve is swallowed on the way down
+        (``PlaylistCollector.parse`` logs and yields nothing, ``addid`` errors are caught),
+        so a swipe would otherwise fail without any sign of it outside the log.
+
+        Caller must hold ``mpd_lock``.
+        """
+        if int(self.mpd_client.status().get('playlistlength', 0)) == 0:
+            logger.error(f"Nothing playable was queued ({key}: {params})")
+            publishing.notify('error', key, **params)
+
     @plugs.tag
     def prev(self):
         logger.debug("Prev")
@@ -831,6 +844,7 @@ class PlayerMPD:
             self.current_folder_status = self.music_player_status['audio_folder_status'].get(uri)
             if self.current_folder_status is None:
                 self.current_folder_status = self.music_player_status['audio_folder_status'][uri] = {}
+            self._notify_if_queue_empty('player.toasts.uri-empty', uri=uri)
             self.mpd_client.play()
 
     def _mopidy_rpc(self, method: str, params: dict):
@@ -1339,6 +1353,8 @@ class PlayerMPD:
                 logger.error(f"{e.__class__.__qualname__}: {e} at uri {uri}")
             except Exception as e:
                 logger.error(f"{e.__class__.__qualname__}: {e} at uri {uri}")
+
+            self._notify_if_queue_empty('player.toasts.folder-empty', folder=folder)
 
             self.music_player_status['player_status']['last_played_folder'] = folder
 

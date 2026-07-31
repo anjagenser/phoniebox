@@ -342,6 +342,12 @@
       "slider": "Lautstärkeregler",
       "mute": "Stumm schalten",
       "unmute": "Stumm schalten deaktivieren"
+    },
+    "toasts": {
+      "card-failed": "Karte konnte nicht abgespielt werden: {{reason}}",
+      "card-unknown": "Unbekannte Karte {{card}}, noch keinem Inhalt zugewiesen",
+      "folder-empty": "Im Ordner \"{{folder}}\" ist nichts Abspielbares",
+      "uri-empty": "Für \"{{uri}}\" wurde nichts Abspielbares gefunden"
     }
   },
   "settings": {

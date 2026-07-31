@@ -18,6 +18,11 @@ cfg = jukebox.cfghandler.get_handler('rfid')
 # Maps SPI CE number to the corresponding GPIO BCM pin number
 _SPI_CE_GPIO = {0: 8, 1: 7}
 
+# PN532 commands used for the presence re-poll (NXP UM0701-02)
+_COMMAND_RFCONFIGURATION = 0x32
+_COMMAND_INRELEASE = 0x52
+_CFGITEM_RF_FIELD = 0x01
+
 
 def query_customization() -> dict:
     prompt_color = Colors.lightgreen
@@ -133,4 +138,26 @@ class ReaderClass(ReaderBaseClass):
         if self.log_all_cards:
             self._logger.debug(f"Card detected with ID = {card_id}")
 
+        self._repoll_target()
         return card_id
+
+    def _repoll_target(self):
+        """Release the activated target and cycle the RF field.
+
+        The PN532 activates a target only once. A card left lying on the reader is not
+        reported by any further ``InListPassiveTarget``, which the place-and-remove
+        watchdog cannot distinguish from a removal. Releasing the target and dropping the
+        field returns the card to IDLE, so the next poll detects it as if freshly placed.
+
+        Best effort: on failure detection degrades to the previous single-shot behaviour
+        rather than taking down the reader thread.
+        """
+        try:
+            self.device.call_function(_COMMAND_INRELEASE, params=[0x00],
+                                      response_length=1, timeout=0.5)
+            self.device.call_function(_COMMAND_RFCONFIGURATION,
+                                      params=[_CFGITEM_RF_FIELD, 0x00], timeout=0.5)
+            self.device.call_function(_COMMAND_RFCONFIGURATION,
+                                      params=[_CFGITEM_RF_FIELD, 0x01], timeout=0.5)
+        except Exception as e:
+            self._logger.debug(f"Presence re-poll failed: {e.__class__.__name__}: {e}")

@@ -1,7 +1,11 @@
+import itertools
 import threading
 import jukebox.publishing.server as publishing
 
 _THREAD_PUBLISHER = threading.local()
+
+NOTIFICATION_TOPIC = 'notification'
+_notification_ids = itertools.count(1)
 
 
 def get_publisher():
@@ -36,3 +40,25 @@ def get_publisher():
     if not hasattr(_THREAD_PUBLISHER, 'publisher_instance'):
         _THREAD_PUBLISHER.publisher_instance = publishing.Publisher()
     return _THREAD_PUBLISHER.publisher_instance
+
+
+def notify(severity: str, key: str, **params):
+    """Publish a user-facing notification for the WebApp to show as a toast
+
+    :param severity: One of ``error``, ``warning``, ``info``, ``success``
+    :param key: Translation key the WebApp resolves, e.g. ``player.toasts.folder-empty``
+    :param params: Interpolation parameters for that translation
+
+    A key is sent rather than a ready-made sentence, because the translations live in the
+    WebApp (``public/locales/*/translation.json``) and the user's language is only known
+    there.
+
+    The incrementing ``id`` keeps repeated identical failures distinguishable. The publish
+    server caches the last value per topic, so without it a second identical failure would
+    not change the payload and the WebApp would stay silent.
+    """
+    get_publisher().send(NOTIFICATION_TOPIC,
+                         {'id': next(_notification_ids),
+                          'severity': severity,
+                          'key': key,
+                          'params': params})
