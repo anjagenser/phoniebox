@@ -40,7 +40,9 @@ const SelectPlayMusic = ({
     });
 
     navigate({
-      pathname: '/library',
+      // Straight to the folder view: assigning a folder is what this is used for,
+      // and the last used library view would otherwise decide where we land
+      pathname: '/library/folders',
       search: `?${searchParams}`,
    });
   };

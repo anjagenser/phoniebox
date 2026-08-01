@@ -124,7 +124,13 @@
           }
         }
       },
-      "saving": "Saving..."
+      "saving": "Saving...",
+      "quick-actions": {
+        "title": "What should this card play?",
+        "folder": "Music folder",
+        "spotify": "Spotify link",
+        "all-actions": "Choose another action"
+      }
     },
     "dialogs": {
       "delete": {

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import {
@@ -14,6 +14,7 @@ import BookmarkIcon from '@mui/icons-material/Bookmark';
 import Header from '../Header';
 import ActionsControls from './controls/actions-controls';
 import ControlsSelector from './controls/controls-selector';
+import { getActionAndCommand } from './utils';
 
 const InfoNoCardSwiped = () => {
   const { t } = useTranslation();
@@ -30,8 +31,12 @@ const CardsForm = ({
   cardId,
   actionData,
   setActionData,
+  // Only on registration: editing an existing card always starts with an action
+  allowQuickActions = false,
 }) => {
   const { t } = useTranslation();
+  const [showAllActions, setShowAllActions] = useState(false);
+  const { action } = getActionAndCommand(actionData);
 
   return (
     <>
@@ -59,12 +64,16 @@ const CardsForm = ({
                       actionData={actionData}
                       setActionData={setActionData}
                       cardId={cardId}
+                      showAllActions={showAllActions || !allowQuickActions}
+                      onShowAllActions={() => setShowAllActions(true)}
                     />
                   </Grid>
-                  <ActionsControls
-                    actionData={actionData}
-                    cardId={cardId}
-                  />
+                  {action &&
+                    <ActionsControls
+                      actionData={actionData}
+                      cardId={cardId}
+                    />
+                  }
                 </>
               }
               {!cardId && <InfoNoCardSwiped />}

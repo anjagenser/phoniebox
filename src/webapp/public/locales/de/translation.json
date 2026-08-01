@@ -124,7 +124,13 @@
           }
         }
       },
-      "saving": "Wird gespeichert..."
+      "saving": "Wird gespeichert...",
+      "quick-actions": {
+        "title": "Was soll diese Karte abspielen?",
+        "folder": "Musik-Ordner",
+        "spotify": "Spotify-Link",
+        "all-actions": "Andere Aktion wählen"
+      }
     },
     "dialogs": {
       "delete": {

@@ -32,6 +32,7 @@ const CardsRegister = () => {
       cardId={cardId}
       actionData={actionData}
       setActionData={setActionData}
+      allowQuickActions
     />
   );
 };

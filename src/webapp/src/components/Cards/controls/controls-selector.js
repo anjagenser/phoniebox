@@ -6,11 +6,12 @@ import {
   Typography,
 } from '@mui/material';
 
+import QuickActions from './quick-actions';
 import SelectCommandAliases from './select-command-aliases';
 import SelectPlayMusic from './actions/play-music';
 import SelectTimers from './actions/timers';
 import SelectAudio from './actions/audio';
-import { buildActionData } from '../utils';
+import { buildActionData, getActionAndCommand } from '../utils';
 import SelectHost from './actions/host';
 import SelectSynchronisation from './actions/synchronisation';
 
@@ -18,6 +19,8 @@ const ControlsSelector = ({
   actionData,
   setActionData,
   cardId,
+  showAllActions,
+  onShowAllActions,
 }) => {
   const { t } = useTranslation();
 
@@ -30,6 +33,19 @@ const ControlsSelector = ({
   const handleActionDataChange = (action, command, args) => {
     setActionData(
       buildActionData(action, command, args)
+    );
+  }
+
+  const { action } = getActionAndCommand(actionData);
+
+  // Nothing picked yet: offer the two common assignments instead of the full list
+  if (!action && !showAllActions) {
+    return (
+      <QuickActions
+        cardId={cardId}
+        handleActionDataChange={handleActionDataChange}
+        onShowAllActions={onShowAllActions}
+      />
     );
   }
 

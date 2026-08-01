@@ -17,6 +17,7 @@ const SelectedUri = ({ values: [uri], actionData, handleActionDataChange }) => {
 
   return (
     <TextField
+      autoFocus
       fullWidth
       size="small"
       label={t('cards.controls.actions.play-music.spotify-uri-label')}
