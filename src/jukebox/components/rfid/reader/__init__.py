@@ -22,7 +22,7 @@ _READERS = {}
 #: Seconds a card may stay undetected before it counts as removed. Needs to cover a few
 #: missed polls: a reader built into a card slot reads less reliably than one you place
 #: the card on top of, and every missed poll would otherwise stop the music.
-DEFAULT_CARD_REMOVAL_DELAY = 2.5
+DEFAULT_CARD_REMOVAL_DELAY = 1
 
 cfg_rfid = jukebox.cfghandler.get_handler('rfid')
 cfg_main = jukebox.cfghandler.get_handler('jukebox')
