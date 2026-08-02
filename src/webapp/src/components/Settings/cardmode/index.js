@@ -7,10 +7,14 @@ import {
   CardHeader,
   CircularProgress,
   Divider,
+  FormControl,
   FormControlLabel,
   Grid,
+  InputLabel,
+  MenuItem,
   Radio,
   RadioGroup,
+  Select,
   Typography,
 } from '@mui/material';
 
@@ -20,10 +24,15 @@ import { emit } from '../../../context/toast/events';
 const PLACE = 'place';
 const SWIPE = 'swipe';
 
+// A reader behind a card slot misses a read now and then. The delay must outlast those
+// dropouts, so the choice reaches well beyond the default.
+const DELAY_OPTIONS = [1, 1.5, 2, 2.5, 3, 4, 5, 7, 10];
+
 const SettingsCardMode = () => {
   const { t } = useTranslation();
 
   const [mode, setMode] = useState(null);
+  const [delay, setDelay] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isError, setIsError] = useState(false);
 
@@ -36,6 +45,7 @@ const SettingsCardMode = () => {
         return;
       }
       setMode(result.place_not_swipe ? PLACE : SWIPE);
+      setDelay(result.card_removal_delay ?? null);
     };
     load();
   }, []);
@@ -53,6 +63,20 @@ const SettingsCardMode = () => {
     }
     emit('success', t('settings.cardmode.saved'));
   };
+
+  const handleDelayChange = async (event) => {
+    const value = event.target.value;
+    const previous = delay;
+    setDelay(value);
+    const { error } = await request('setCardRemovalDelay', { delay: value });
+    if (error) {
+      setDelay(previous);
+      return;
+    }
+    emit('success', t('settings.cardmode.saved'));
+  };
+
+  const delayValue = DELAY_OPTIONS.includes(delay) ? delay : '';
 
   return (
     <Card>
@@ -103,6 +127,32 @@ const SettingsCardMode = () => {
                 sx={{ alignItems: 'flex-start' }}
               />
             </RadioGroup>
+
+            {mode === PLACE && delay !== null && (
+              <>
+                <Divider sx={{ my: 2 }} />
+                <FormControl size="small" sx={{ maxWidth: '260px' }}>
+                  <InputLabel id="card-removal-delay-label">
+                    {t('settings.cardmode.removal-delay-label')}
+                  </InputLabel>
+                  <Select
+                    labelId="card-removal-delay-label"
+                    label={t('settings.cardmode.removal-delay-label')}
+                    value={delayValue}
+                    onChange={handleDelayChange}
+                  >
+                    {DELAY_OPTIONS.map((option) => (
+                      <MenuItem key={option} value={option}>
+                        {t('settings.cardmode.removal-delay-seconds', { seconds: option })}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                  {t('settings.cardmode.removal-delay-description')}
+                </Typography>
+              </>
+            )}
           </Grid>
         )}
       </CardContent>

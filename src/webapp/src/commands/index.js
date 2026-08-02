@@ -490,6 +490,12 @@ const commands = {
     argKeys: ['place_not_swipe'],
   },
 
+  setCardRemovalDelay: {
+    _package: 'rfid',
+    plugin: 'set_card_removal_delay',
+    argKeys: ['delay'],
+  },
+
   getSecondSwipeOption: {
     _package: 'player',
     plugin: 'ctrl',

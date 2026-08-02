@@ -457,7 +457,10 @@
       "swipe-title": "Auflegen (Swipe)",
       "swipe-description": "Jeder Kontakt einer Karte wird als Swipe gelesen und die Wiedergabe läuft nach dem Entfernen weiter.",
       "saved": "Karten-Lesemodus gespeichert",
-      "load-error": "Der Karten-Lesemodus konnte nicht geladen werden."
+      "load-error": "Der Karten-Lesemodus konnte nicht geladen werden.",
+      "removal-delay-label": "Verzögerung bis Karte als entfernt gilt",
+      "removal-delay-seconds": "{{seconds}} Sekunden",
+      "removal-delay-description": "Wie lange die Karte unerkannt bleiben darf, bevor die Wiedergabe stoppt. Ist der Leser hinter einem Kartenschlitz eingebaut, wird die Karte nicht bei jedem Versuch erkannt. Ein höherer Wert verhindert, dass die Musik stoppt, obwohl die Karte noch steckt."
     },
     "secondswipe": {
       "title": "Erneute Aktivierung (Second Swipe)",

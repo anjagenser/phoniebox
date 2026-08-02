@@ -18,6 +18,12 @@ cfg = jukebox.cfghandler.get_handler('rfid')
 # Maps SPI CE number to the corresponding GPIO BCM pin number
 _SPI_CE_GPIO = {0: 8, 1: 7}
 
+# A poll blocks for this long before it reports "no card". The retries after a miss are
+# kept short so a genuine card removal is still noticed quickly.
+_POLL_TIMEOUT = 0.5
+_POLL_RETRIES = 2
+_POLL_RETRY_TIMEOUT = 0.2
+
 # PN532 commands used for the presence re-poll (NXP UM0701-02)
 _COMMAND_RFCONFIGURATION = 0x32
 _COMMAND_INRELEASE = 0x52
@@ -122,7 +128,7 @@ class ReaderClass(ReaderBaseClass):
         # With IRQ pin configured the library waits for the IRQ signal first,
         # reducing CPU load. Without IRQ pin it polls the SPI bus directly.
         # Either way the 0.5s timeout allows _keep_running to be checked regularly.
-        uid = self.device.read_passive_target(timeout=0.5)
+        uid = self._read_uid()
         if uid is None:
             return ''
 
@@ -140,6 +146,21 @@ class ReaderClass(ReaderBaseClass):
 
         self._repoll_target()
         return card_id
+
+    def _read_uid(self):
+        """Poll for a card, retrying briefly before reporting nothing.
+
+        A card that rests in a holder or slot does not answer every poll: the coupling is
+        weaker than with a card placed flat on the antenna, and the card needs a moment to
+        power up again after the RF field was cycled. Without the retries a single missed
+        poll looks like a removed card to the place-and-remove watchdog.
+        """
+        uid = self.device.read_passive_target(timeout=_POLL_TIMEOUT)
+        for _ in range(_POLL_RETRIES):
+            if uid is not None or not self._keep_running:
+                break
+            uid = self.device.read_passive_target(timeout=_POLL_RETRY_TIMEOUT)
+        return uid
 
     def _repoll_target(self):
         """Release the activated target and cycle the RF field.

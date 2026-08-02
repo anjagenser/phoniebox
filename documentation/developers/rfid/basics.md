@@ -54,6 +54,7 @@ rfid:
         log_ignored_cards: true|false
         place_not_swipe:
             enabled: true|false
+            card_removal_delay: float|integer
             card_removal_action:
                 alias: pause
 ```
@@ -75,6 +76,17 @@ Minimum delay in seconds between 2 card detections before triggering a new actio
 ### place_not_swipe: true \| false
 
 For place-capable RFID readers enable dual action mode: a start action (e.g. playing) on card placement and card removal action (e.g. pause).
+
+### card_removal_delay: float \| integer
+
+Seconds a card may stay undetected before it counts as removed. Default is 2.5 seconds, the
+minimum is 0.5. Only relevant if place_not_swipe is true, and also settable in the web app
+under Settings, card reading mode.
+
+A reader that the card is placed on reports the card on nearly every poll. A reader built
+into a card slot reads it less reliably, and each missed read looks exactly like a removed
+card. If playback stops while the card is still in the box, raise this value. Lower it to
+have playback stop more promptly after the card is taken out.
 
 ### card_removal_action: Dictionary
 

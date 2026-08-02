@@ -18,6 +18,12 @@ from jukebox.callingback import CallbackHandler
 log = logging.getLogger('jb.rfid')
 
 _READERS = {}
+
+#: Seconds a card may stay undetected before it counts as removed. Needs to cover a few
+#: missed polls: a reader built into a card slot reads less reliably than one you place
+#: the card on top of, and every missed poll would otherwise stop the music.
+DEFAULT_CARD_REMOVAL_DELAY = 2.5
+
 cfg_rfid = jukebox.cfghandler.get_handler('rfid')
 cfg_main = jukebox.cfghandler.get_handler('jukebox')
 cfg_cards = jukebox.cfghandler.get_handler('cards')
@@ -79,15 +85,24 @@ class CardRemovalTimerClass(threading.Thread):
     A timer watchdog thread that calls timeout_action on time-out
 
     """
-    def __init__(self, on_timeout_callback, logger: logging.Logger = None):
+    def __init__(self, on_timeout_callback, timeout: float = DEFAULT_CARD_REMOVAL_DELAY,
+                 logger: logging.Logger = None):
         """
         :param on_timeout_callback: The function to execute on time-out
+
+        :param timeout: Seconds without a card detection before the card counts as removed
         """
         threading.Thread.__init__(self)
         self._logger = logger if logger is not None else logging.getLogger('jb.rfid.cardremove')
         self.trigger = threading.Event()
         self.timeout_action = on_timeout_callback
+        self._timeout = max(0.5, float(timeout))
         self._cancel = threading.Event()
+
+    def set_timeout(self, timeout: float):
+        """Change the time-out. Takes effect with the next watchdog cycle."""
+        self._timeout = max(0.5, float(timeout))
+        self._logger.debug(f"Card removal timeout set to {self._timeout}s")
 
     def stop(self):
         """Stop the watchdog thread without running the time-out action."""
@@ -95,20 +110,26 @@ class CardRemovalTimerClass(threading.Thread):
         self.trigger.set()  # wake up the blocking wait()
 
     def run(self):
-        self._logger.debug("CardRemovalTimerClass watchdog started")
+        self._logger.debug(f"CardRemovalTimerClass watchdog started (timeout = {self._timeout}s)")
         has_timed_out = True
+        last_seen = time.time()
         while not self._cancel.is_set():
             # Prevent max CPU by forced loop slow down when self.trigger.is_set() is permanently high
             time.sleep(0.2)
             # This is the actual timer:
             # self.trigger.wait() aborts immediately when trigger.is_set becomes True
-            self.trigger.wait(1)
+            self.trigger.wait(self._timeout)
             if self._cancel.is_set():
                 break
             if self.trigger.is_set():
                 has_timed_out = False
+                last_seen = time.time()
             else:
                 if not has_timed_out:
+                    # A card that reads unreliably (e.g. mounted in a slot) drops out for a moment and
+                    # looks removed. Logged so the gap can be compared with the configured timeout.
+                    self._logger.debug(f"Card removal action after {time.time() - last_seen:.1f}s "
+                                       "without a card detection")
                     self.timeout_action()
                 # Save that we have timed out before, so time-out event handler is run only on the first time out
                 has_timed_out = True
@@ -136,6 +157,9 @@ class ReaderRunner(threading.Thread):
                                                          'place_not_swipe', 'enabled', value=False)
         self._cfg_log_ignored_cards = cfg_rfid.setndefault('rfid', 'readers', reader_cfg_key,
                                                            'log_ignored_cards', value=False)
+        self._cfg_card_removal_delay = cfg_rfid.setndefault('rfid', 'readers', reader_cfg_key,
+                                                            'place_not_swipe', 'card_removal_delay',
+                                                            value=DEFAULT_CARD_REMOVAL_DELAY)
         # Get removal actions:
         cfg_removal_action = cfg_rfid.getn('rfid', 'readers', reader_cfg_key,
                                            'place_not_swipe', 'card_removal_action', default=None)
@@ -157,7 +181,8 @@ class ReaderRunner(threading.Thread):
     def _start_removal_timer(self):
         """Create and start the card-removal watchdog for place-not-swipe mode."""
         self._timer_thread = CardRemovalTimerClass(
-            utils.bind_rpc_command(self._default_removal_action, dereference=False, logger=self._logger))
+            utils.bind_rpc_command(self._default_removal_action, dereference=False, logger=self._logger),
+            timeout=self._cfg_card_removal_delay)
         self._timer_thread.daemon = True
         self._timer_thread.name = f"{self._reader_cfg_key}CRemover"
         self._timer_thread.start()
@@ -169,6 +194,18 @@ class ReaderRunner(threading.Thread):
     def has_removal_action(self) -> bool:
         """Return True if a card removal action is available for this reader."""
         return self._default_removal_action is not None
+
+    def get_card_removal_delay(self) -> float:
+        """Return the seconds a card may stay undetected before it counts as removed."""
+        return float(self._cfg_card_removal_delay)
+
+    def set_card_removal_delay(self, delay: float):
+        """Change the card removal delay at runtime and remember it in the config."""
+        self._cfg_card_removal_delay = float(delay)
+        cfg_rfid.setn('rfid', 'readers', self._reader_cfg_key, 'place_not_swipe',
+                      'card_removal_delay', value=self._cfg_card_removal_delay)
+        if self._timer_thread is not None:
+            self._timer_thread.set_timeout(self._cfg_card_removal_delay)
 
     def set_place_not_swipe(self, enabled: bool):
         """Switch this reader between place-and-remove and swipe mode at runtime.
@@ -326,9 +363,12 @@ def get_card_reading_mode():
     action exists (or can be defaulted) so the mode can be switched on.
     """
     if not _READERS:
-        return {'place_not_swipe': False, 'removal_action_available': False}
+        return {'place_not_swipe': False, 'removal_action_available': False,
+                'card_removal_delay': DEFAULT_CARD_REMOVAL_DELAY}
     place_not_swipe = all(runner.is_place_not_swipe() for runner in _READERS.values())
-    return {'place_not_swipe': place_not_swipe, 'removal_action_available': True}
+    delay = max(runner.get_card_removal_delay() for runner in _READERS.values())
+    return {'place_not_swipe': place_not_swipe, 'removal_action_available': True,
+            'card_removal_delay': delay}
 
 
 @plugs.register
@@ -345,6 +385,24 @@ def set_card_reading_mode(place_not_swipe: bool):
                       value=place_not_swipe)
     cfg_rfid.save(only_if_changed=True)
     log.info(f"Card reading mode set to {'place-and-remove' if place_not_swipe else 'swipe'}")
+    return get_card_reading_mode()
+
+
+@plugs.register
+def set_card_removal_delay(delay: float):
+    """Set how long a card may stay undetected before the removal action runs.
+
+    A reader mounted behind a card slot reads less reliably than one the card is placed on.
+    Every missed read looks like a removal, so the delay must cover the dropouts, otherwise
+    playback stops while the card is still in the box.
+
+    :param delay: Seconds, at least 0.5
+    """
+    delay = max(0.5, float(delay))
+    for runner in _READERS.values():
+        runner.set_card_removal_delay(delay)
+    cfg_rfid.save(only_if_changed=True)
+    log.info(f"Card removal delay set to {delay}s")
     return get_card_reading_mode()
 
 

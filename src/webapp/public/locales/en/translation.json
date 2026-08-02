@@ -457,7 +457,10 @@
       "swipe-title": "Swipe",
       "swipe-description": "Every touch of a card is read as a swipe and playback continues after the card is removed.",
       "saved": "Card reading mode saved",
-      "load-error": "Card reading mode could not be loaded."
+      "load-error": "Card reading mode could not be loaded.",
+      "removal-delay-label": "Delay before a card counts as removed",
+      "removal-delay-seconds": "{{seconds}} seconds",
+      "removal-delay-description": "How long the card may stay undetected before playback stops. A reader mounted behind a card slot does not read the card on every attempt. A higher value keeps the music from stopping while the card is still in the box."
     },
     "secondswipe": {
       "title": "Second Swipe",
