@@ -18,6 +18,15 @@ _run_set_raspi_config() {
   # saving back on whenever it (re)connects. Persist it in the connection profile
   # as well (2 = disable), so the Phoniebox stays reachable after every reconnect.
   if command -v nmcli >/dev/null 2>&1; then
+    # A per-profile setting is lost when the profile is regenerated (netplan) or
+    # when a new WiFi is added later, so set the NetworkManager-wide default too.
+    log "    Set NetworkManager default wifi.powersave=off"
+    sudo mkdir -p /etc/NetworkManager/conf.d
+    sudo tee /etc/NetworkManager/conf.d/10-wifi-powersave-off.conf >/dev/null <<-EOF
+	[connection]
+	wifi.powersave = 2
+	EOF
+
     local wifi_device
     wifi_device=$(nmcli -t -f DEVICE,TYPE device status 2>/dev/null | awk -F: '$2=="wifi"{print $1; exit}')
     if [[ -n "$wifi_device" ]]; then
