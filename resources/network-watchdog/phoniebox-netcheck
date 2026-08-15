@@ -1,0 +1,134 @@
+#!/usr/bin/env bash
+#
+# Phoniebox network watchdog
+#
+# Logs one status line per run and reconnects the WiFi when the LAN has gone
+# away. Runs from phoniebox-netcheck.timer, output goes to the journal.
+#
+# Escalation per consecutive LAN failure:
+#   2  re-activate the WiFi profile
+#   4  restart NetworkManager
+#   6  log an alert and start over
+# The box is never rebooted: local playback keeps working while offline.
+
+STATE_FILE="/run/phoniebox-netcheck.state"
+FAIL_RECONNECT=2
+FAIL_RESTART_NM=4
+FAIL_ALERT=6
+
+log() { echo "$*"; }
+
+_read_fail_count() {
+    local count
+    count=$(cat "$STATE_FILE" 2>/dev/null)
+    [[ "$count" =~ ^[0-9]+$ ]] || count=0
+    echo "$count"
+}
+
+_wifi_device() {
+    nmcli -t -f DEVICE,TYPE device status 2>/dev/null \
+        | awk -F: '$2=="wifi"{print $1; exit}'
+}
+
+_active_profile() {
+    local dev="$1"
+    nmcli -t -f DEVICE,CONNECTION device status 2>/dev/null \
+        | awk -F: -v d="$dev" '$1==d && $2!="--"{print $2; exit}'
+}
+
+# The autohotspot owns the interface while its access point is up. Stay away.
+_is_access_point() {
+    local profile="$1"
+    [[ -n "$profile" ]] || return 1
+    [[ "$(nmcli -g 802-11-wireless.mode connection show "$profile" 2>/dev/null)" == "ap" ]]
+}
+
+_default_gateway() {
+    ip -4 route show default 2>/dev/null | awk '/default/{print $3; exit}'
+}
+
+_lan_is_up() {
+    local gateway="$1"
+    [[ -n "$gateway" ]] || return 1
+    ping -c 2 -W 2 -n -q "$gateway" >/dev/null 2>&1
+}
+
+_dns_is_up() {
+    getent hosts api.spotify.com >/dev/null 2>&1
+}
+
+# NetworkManager may re-enable power saving on reconnect, which is what makes
+# the box drop off the network in the first place.
+_disable_power_save() {
+    local dev="$1"
+    iw dev "$dev" set power_save off >/dev/null 2>&1
+}
+
+_recover() {
+    local dev="$1" profile="$2" fail_count="$3"
+
+    if (( fail_count >= FAIL_ALERT )); then
+        log "ALERT: LAN still down after ${fail_count} checks, recovery is not working"
+        echo 0 > "$STATE_FILE"
+        return
+    fi
+
+    if (( fail_count >= FAIL_RESTART_NM )); then
+        log "recovery: restarting NetworkManager (failure ${fail_count})"
+        systemctl restart NetworkManager
+        _disable_power_save "$dev"
+        return
+    fi
+
+    if (( fail_count >= FAIL_RECONNECT )); then
+        if [[ -n "$profile" ]]; then
+            log "recovery: re-activating profile '${profile}' (failure ${fail_count})"
+            nmcli connection down "$profile" >/dev/null 2>&1
+            nmcli connection up "$profile" >/dev/null 2>&1
+        else
+            log "recovery: no profile active, connecting device ${dev} (failure ${fail_count})"
+            nmcli device connect "$dev" >/dev/null 2>&1
+        fi
+        _disable_power_save "$dev"
+    fi
+}
+
+main() {
+    local dev profile gateway ip signal power_save fail_count
+    dev="$(_wifi_device)"
+    if [[ -z "$dev" ]]; then
+        log "state=NO_WIFI_DEVICE"
+        exit 0
+    fi
+
+    profile="$(_active_profile "$dev")"
+    if _is_access_point "$profile"; then
+        log "state=HOTSPOT profile='${profile}' - autohotspot is in charge, skipping"
+        echo 0 > "$STATE_FILE"
+        exit 0
+    fi
+
+    gateway="$(_default_gateway)"
+    ip="$(ip -4 -o addr show "$dev" 2>/dev/null | awk '{print $4; exit}')"
+    signal="$(iw dev "$dev" link 2>/dev/null | awk '/signal:/{print $2 " " $3; exit}')"
+    power_save="$(iw dev "$dev" get power_save 2>/dev/null | awk '{print $NF; exit}')"
+    fail_count="$(_read_fail_count)"
+
+    if _lan_is_up "$gateway"; then
+        echo 0 > "$STATE_FILE"
+        if _dns_is_up; then
+            log "state=OK profile='${profile}' ip=${ip:-none} gw=${gateway} signal=${signal:-?} power_save=${power_save:-?}"
+        else
+            # LAN is fine, so this is the router or the provider, not our WiFi.
+            log "state=NO_INTERNET profile='${profile}' ip=${ip:-none} gw=${gateway} signal=${signal:-?} - LAN ok, DNS failed"
+        fi
+        exit 0
+    fi
+
+    fail_count=$(( fail_count + 1 ))
+    echo "$fail_count" > "$STATE_FILE"
+    log "state=LAN_DOWN failures=${fail_count} profile='${profile:-none}' ip=${ip:-none} gw=${gateway:-none} signal=${signal:-?} power_save=${power_save:-?}"
+    _recover "$dev" "$profile" "$fail_count"
+}
+
+main "$@"

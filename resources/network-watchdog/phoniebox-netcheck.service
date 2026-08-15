@@ -1,0 +1,8 @@
+[Unit]
+Description=Phoniebox network watchdog, logs WiFi state and reconnects when the LAN is gone
+After=NetworkManager.service
+Wants=NetworkManager.service
+
+[Service]
+Type=oneshot
+ExecStart=%%NETCHECK_SCRIPT%%
