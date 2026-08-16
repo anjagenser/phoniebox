@@ -14,6 +14,12 @@
 #
 export LC_ALL=C
 
+# Raspberry Pi OS Trixie enables pam_umask together with user private groups, so an
+# interactive login gets umask 002 instead of the 022 the installer is written for.
+# Everything created during the install would become group writable (775 / 664) and
+# the verification steps (.git, jukebox.yaml, systemd units, ...) would abort.
+umask 022
+
 # Set Repo variables if not specified when calling the script
 GIT_USER=${GIT_USER:-"MiczFlor"}
 GIT_BRANCH=${GIT_BRANCH:-"future3/main"}

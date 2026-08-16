@@ -182,6 +182,9 @@ _run_init_git_repo_from_tardir() {
     else
         _git_convert_tardir_git_repo
     fi
+    # A tree that was cloned or copied here before the installer set its umask keeps the
+    # group write bit, which the check below rejects.
+    chmod 755 "${INSTALLATION_PATH}/.git"
     _git_repo_check
 }
 
