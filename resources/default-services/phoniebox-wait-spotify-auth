@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+#
+# Hold Mopidy back until the Spotify token endpoint answers.
+#
+# Mopidy-Spotify fetches its OAuth token once, in on_start(), and never tries
+# again for the rest of the process lifetime. On a fast Pi boot that request can
+# lose the race against WiFi association by a second or less. When it does, every
+# Spotify card fails with "directory or file not found" until Mopidy is restarted,
+# while local music keeps playing and hides the problem.
+#
+# Exits 0 in every case: a box without Spotify, or an offline box, must still boot.
+
+CONF="${1:?usage: $(basename "$0") <mopidy.conf> [timeout_seconds]}"
+TIMEOUT="${2:-45}"
+TOKEN_URL="https://auth.mopidy.com/spotify/token"
+
+_spotify_setting() {
+    local key="$1"
+    awk -F"[[:space:]]*=[[:space:]]*" -v key="$key" '
+        /^\[/ { in_spotify = ($0 == "[spotify]"); next }
+        in_spotify && $1 == key { print $2; exit }
+    ' "$CONF" 2>/dev/null
+}
+
+if [[ ! -r "$CONF" ]]; then
+    echo "wait-spotify-auth: cannot read ${CONF}, skipping"
+    exit 0
+fi
+
+if [[ "$(_spotify_setting enabled)" != "true" || -z "$(_spotify_setting client_id)" ]]; then
+    echo "wait-spotify-auth: Spotify not configured, skipping"
+    exit 0
+fi
+
+# Any HTTP answer proves reachability; the 401 for an unauthenticated request is
+# as good as a token here.
+deadline=$(( SECONDS + TIMEOUT ))
+while (( SECONDS < deadline )); do
+    if curl -s -o /dev/null --max-time 5 "$TOKEN_URL"; then
+        echo "wait-spotify-auth: token endpoint reachable after ${SECONDS}s"
+        exit 0
+    fi
+    sleep 1
+done
+
+echo "wait-spotify-auth: no answer from ${TOKEN_URL} after ${TIMEOUT}s," \
+     "starting anyway - Spotify will need a Mopidy restart once the network is back"
+exit 0

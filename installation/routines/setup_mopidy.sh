@@ -4,6 +4,7 @@ AUDIOFOLDERS_PATH="${SHARED_PATH}/audiofolders"
 PLAYLISTS_PATH="${SHARED_PATH}/playlists"
 
 MOPIDY_SYSTEMD_USR_SERVICE="${SYSTEMD_USR_PATH}/mopidy.service"
+WAIT_SPOTIFY_AUTH_BIN="/usr/local/bin/phoniebox-wait-spotify-auth"
 
 _mopidy_install_os_dependencies() {
     log "  Add Mopidy APT repository"
@@ -100,9 +101,15 @@ _mopidy_configure() {
 
     chmod 600 "${MOPIDY_CONF_PATH}"
 
+    # Mopidy-Spotify asks for its OAuth token once at startup and never again, so
+    # the service has to wait for the network before it starts (see the script).
+    sudo cp -f "${INSTALLATION_PATH}/resources/default-services/phoniebox-wait-spotify-auth" "${WAIT_SPOTIFY_AUTH_BIN}"
+    sudo chmod +x "${WAIT_SPOTIFY_AUTH_BIN}"
+
     # Register Mopidy as a user systemd service
     sudo cp -f "${INSTALLATION_PATH}/resources/default-services/mopidy.service" "${MOPIDY_SYSTEMD_USR_SERVICE}"
     sudo sed -i "s|%%MOPIDY_CONF_PATH%%|${MOPIDY_CONF_PATH}|g" "${MOPIDY_SYSTEMD_USR_SERVICE}"
+    sudo sed -i "s|%%WAIT_SPOTIFY_AUTH_BIN%%|${WAIT_SPOTIFY_AUTH_BIN}|g" "${MOPIDY_SYSTEMD_USR_SERVICE}"
     # Mopidy 4.x is installed via pip (usually /usr/local/bin/mopidy), not the apt
     # location (/usr/bin/mopidy = the 3.x kept only for its gstreamer system deps).
     # Point the service at whichever 'mopidy' resolves first on PATH.
@@ -150,6 +157,9 @@ Ensure 'python3-pip' is installed (see packages-mopidy.txt) and that
 
     verify_service_enablement mopidy.service disabled
     verify_service_enablement mopidy.service enabled --user
+
+    verify_files_exists "${WAIT_SPOTIFY_AUTH_BIN}"
+    verify_file_contains_string "ExecStartPre=${WAIT_SPOTIFY_AUTH_BIN}" "${MOPIDY_SYSTEMD_USR_SERVICE}"
 }
 
 _run_setup_mopidy() {

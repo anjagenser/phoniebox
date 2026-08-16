@@ -3,6 +3,7 @@ Description=Mopidy music server (Spotify support)
 After=pulseaudio.service network.target
 
 [Service]
+ExecStartPre=%%WAIT_SPOTIFY_AUTH_BIN%% %%MOPIDY_CONF_PATH%%
 ExecStart=%%MOPIDY_BIN%% --config %%MOPIDY_CONF_PATH%%
 Restart=on-failure
 RestartSec=5s
