@@ -237,6 +237,30 @@ class ReaderRunner(threading.Thread):
             self._timer_thread.stop()
         self._reader.stop()
 
+    def _resilient_reads(self, reader):
+        """Yield card IDs, treating a raising reader as 'no card' rather than as fatal.
+
+        An exception from the hardware driver used to end this thread for good. The box
+        then still plays and still answers the WebApp, but no card is ever read again
+        until it is restarted, which is close to impossible to diagnose from the outside.
+        Backing off keeps a permanently broken reader from spinning the CPU.
+        """
+        consecutive_errors = 0
+        while not self._cancel.is_set():
+            try:
+                card_id = next(reader)
+                consecutive_errors = 0
+            except StopIteration:
+                return
+            except Exception as e:
+                consecutive_errors += 1
+                self._logger.error(f"Reader failed ({consecutive_errors} in a row): "
+                                   f"{e.__class__.__name__}: {e}")
+                self._logger.debug(f"Detailed reason:\n{traceback.format_exc()}")
+                self._cancel.wait(timeout=min(5.0, 0.2 * consecutive_errors))
+                card_id = ''
+            yield card_id
+
     def run(self):  # noqa: C901
         self._logger.debug("Start listening!")
         # Init the reader class
@@ -259,7 +283,7 @@ class ReaderRunner(threading.Thread):
 
         with self._reader as reader:
             # Raises a StopIteration (if blocking) or simply returns '' (if non-blocking)
-            for card_id in reader:
+            for card_id in self._resilient_reads(reader):
                 if self._cancel.is_set():
                     break
                 # Local snapshot: _timer_thread may be swapped out on a mode change.

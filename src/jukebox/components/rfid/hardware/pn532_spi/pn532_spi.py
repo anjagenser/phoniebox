@@ -1,4 +1,5 @@
 import logging
+import time
 
 import board
 import busio
@@ -11,6 +12,10 @@ import misc.inputminus as pyil
 from misc.simplecolors import Colors
 
 from .description import DESCRIPTION
+from .protocol import (COMMAND_INLISTPASSIVETARGET, COMMAND_RFCONFIGURATION,
+                       COMMAND_INRELEASE, CFGITEM_RF_FIELD, BRTY_ISO14443A_106,
+                       TargetResponseError, max_retries_params,
+                       parse_inlist_response, uid_to_card_id)
 
 logger = logging.getLogger('jb.rfid.pn532spi')
 cfg = jukebox.cfghandler.get_handler('rfid')
@@ -18,16 +23,24 @@ cfg = jukebox.cfghandler.get_handler('rfid')
 # Maps SPI CE number to the corresponding GPIO BCM pin number
 _SPI_CE_GPIO = {0: 8, 1: 7}
 
-# A poll blocks for this long before it reports "no card". The retries after a miss are
-# kept short so a genuine card removal is still noticed quickly.
-_POLL_TIMEOUT = 0.5
-_POLL_RETRIES = 2
-_POLL_RETRY_TIMEOUT = 0.2
+# Safety net only: with the activation retries bounded the PN532 answers a fruitless
+# poll by itself in a few tens of milliseconds, so this timeout should never be reached.
+_POLL_TIMEOUT = 0.3
 
-# PN532 commands used for the presence re-poll (NXP UM0701-02)
-_COMMAND_RFCONFIGURATION = 0x32
-_COMMAND_INRELEASE = 0x52
-_CFGITEM_RF_FIELD = 0x01
+# How long read_card() may keep retrying before it reports "no card".
+#
+# This is the reader's share of card_removal_delay, so it has to stay well under it: the
+# removal watchdog counts down while a poll is in progress, and every second spent here
+# is a second in which a card that is still present looks removed. Cheap polls mean many
+# attempts fit inside the budget, which is what makes a weakly coupled card survive.
+_READ_BUDGET = 0.25
+
+# PN532 activation retries per poll. Low enough that a poll ends promptly, above zero so
+# a card that answers late in the anticollision still gets picked up.
+_DEFAULT_MAX_RETRIES = 2
+
+# Response is NbTg, Tg, SENS_RES (2), SEL_RES, NFCIDLength, NFCID (up to 7)
+_INLIST_RESPONSE_LENGTH = 19
 
 
 def query_customization() -> dict:
@@ -75,6 +88,7 @@ class ReaderClass(ReaderBaseClass):
             pin_irq = config.setdefault('pin_irq', 0)
             pin_rst = config.setdefault('pin_rst', 0)
             self.log_all_cards = config.setdefault('log_all_cards', False)
+            self._max_retries = config.setdefault('max_retries', _DEFAULT_MAX_RETRIES)
             # spi_bus is stored in config for documentation but always 0 on RPi with Blinka
             config.setdefault('spi_bus', 0)
 
@@ -90,7 +104,7 @@ class ReaderClass(ReaderBaseClass):
             self._irq_pin.direction = Direction.INPUT
             self._logger.info(f"Using IRQ pin GPIO{pin_irq}")
         else:
-            self._logger.info("No IRQ pin configured — using polling mode (0.5s interval)")
+            self._logger.info(f"No IRQ pin configured — polling for up to {_READ_BUDGET}s per read")
 
         self._rst_pin = None
         if pin_rst:
@@ -106,7 +120,24 @@ class ReaderClass(ReaderBaseClass):
         self._logger.info(f"PN532 found. Firmware version: {ver}.{rev}")
 
         self.device.SAM_configuration()
+        self._apply_max_retries()
         self._keep_running = True
+
+    def _apply_max_retries(self):
+        """Stop the PN532 from hunting indefinitely on a poll that finds nothing.
+
+        Without this a fruitless poll costs the full host timeout (measured: ~515ms),
+        which leaves room for barely two poll attempts per second and makes a single
+        missed read eat most of card_removal_delay.
+        """
+        try:
+            self.device.call_function(COMMAND_RFCONFIGURATION,
+                                      params=max_retries_params(self._max_retries),
+                                      timeout=0.5)
+            self._logger.info(f"PN532 activation retries bounded to {self._max_retries}")
+        except Exception as e:
+            self._logger.warning(f"Could not set activation retries, polls will be slow: "
+                                 f"{e.__class__.__name__}: {e}")
 
     def cleanup(self):
         del self.device
@@ -124,10 +155,6 @@ class ReaderClass(ReaderBaseClass):
         if not self._keep_running:
             return ''
 
-        # read_passive_target blocks for up to `timeout` seconds.
-        # With IRQ pin configured the library waits for the IRQ signal first,
-        # reducing CPU load. Without IRQ pin it polls the SPI bus directly.
-        # Either way the 0.5s timeout allows _keep_running to be checked regularly.
         uid = self._read_uid()
         if uid is None:
             return ''
@@ -136,7 +163,7 @@ class ReaderClass(ReaderBaseClass):
             return ''
 
         try:
-            card_id = str(int(uid.hex(), base=16))
+            card_id = uid_to_card_id(uid)
         except ValueError:
             self._logger.debug(f"Error while reading card. Raw card ID = {uid!r}")
             return ''
@@ -147,19 +174,47 @@ class ReaderClass(ReaderBaseClass):
         self._repoll_target()
         return card_id
 
+    def _poll_target(self):
+        """Ask the PN532 once whether a card is in the field.
+
+        InListPassiveTarget is issued directly rather than through
+        adafruit_pn532.read_passive_target, because that helper raises
+        "More than one card detected!" for NbTg = 0, i.e. every time no card is present.
+        Nothing up the call chain catches it, so an ordinary empty poll would take the
+        whole reader thread down with it.
+        """
+        try:
+            response = self.device.call_function(COMMAND_INLISTPASSIVETARGET,
+                                                 params=[0x01, BRTY_ISO14443A_106],
+                                                 response_length=_INLIST_RESPONSE_LENGTH,
+                                                 timeout=_POLL_TIMEOUT)
+        except Exception as e:
+            self._logger.debug(f"Poll failed: {e.__class__.__name__}: {e}")
+            return None
+
+        try:
+            readout = parse_inlist_response(response)
+        except TargetResponseError as e:
+            self._logger.debug(f"Unreadable poll response: {e}")
+            return None
+
+        if readout.targets > 1:
+            self._logger.debug(f"{readout.targets} cards in the field, ignoring")
+        return readout.uid
+
     def _read_uid(self):
-        """Poll for a card, retrying briefly before reporting nothing.
+        """Poll for a card until the read budget runs out.
 
         A card that rests in a holder or slot does not answer every poll: the coupling is
-        weaker than with a card placed flat on the antenna, and the card needs a moment to
-        power up again after the RF field was cycled. Without the retries a single missed
-        poll looks like a removed card to the place-and-remove watchdog.
+        weaker than with a card placed flat on the antenna, and it needs a moment to power
+        up again after the RF field was cycled. Retrying rides over those gaps, but the
+        budget has to stay small: the card removal watchdog is counting down the whole
+        time, so a slow retry loop causes the very dropout it is meant to hide.
         """
-        uid = self.device.read_passive_target(timeout=_POLL_TIMEOUT)
-        for _ in range(_POLL_RETRIES):
-            if uid is not None or not self._keep_running:
-                break
-            uid = self.device.read_passive_target(timeout=_POLL_RETRY_TIMEOUT)
+        uid = self._poll_target()
+        deadline = time.monotonic() + _READ_BUDGET
+        while uid is None and self._keep_running and time.monotonic() < deadline:
+            uid = self._poll_target()
         return uid
 
     def _repoll_target(self):
@@ -174,11 +229,11 @@ class ReaderClass(ReaderBaseClass):
         rather than taking down the reader thread.
         """
         try:
-            self.device.call_function(_COMMAND_INRELEASE, params=[0x00],
+            self.device.call_function(COMMAND_INRELEASE, params=[0x00],
                                       response_length=1, timeout=0.5)
-            self.device.call_function(_COMMAND_RFCONFIGURATION,
-                                      params=[_CFGITEM_RF_FIELD, 0x00], timeout=0.5)
-            self.device.call_function(_COMMAND_RFCONFIGURATION,
-                                      params=[_CFGITEM_RF_FIELD, 0x01], timeout=0.5)
+            self.device.call_function(COMMAND_RFCONFIGURATION,
+                                      params=[CFGITEM_RF_FIELD, 0x00], timeout=0.5)
+            self.device.call_function(COMMAND_RFCONFIGURATION,
+                                      params=[CFGITEM_RF_FIELD, 0x01], timeout=0.5)
         except Exception as e:
             self._logger.debug(f"Presence re-poll failed: {e.__class__.__name__}: {e}")
