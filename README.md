@@ -1,7 +1,9 @@
 # RFID Jukebox Version 3 (aka future3)
 
 > **This is a fork** of [MiczFlor/RPi-Jukebox-RFID](https://github.com/MiczFlor/RPi-Jukebox-RFID),
-> maintained with our own fixes and adjustments. All credit for the original
+> maintained with our own fixes and adjustments. It started from the upstream
+> `future3/develop` branch at version 3.7.0-alpha (June 2026) and was imported as a
+> flat copy, so it shares no commit history with upstream. All credit for the original
 > Phoniebox project goes to Micz Flor and the upstream contributors. Distributed
 > under the MIT License (see [LICENSE](LICENSE)).
 
