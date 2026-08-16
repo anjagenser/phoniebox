@@ -1,6 +1,8 @@
 # Set by install-jukebox.sh when installing an already present source tree
 # instead of a download from GitHub. Defaulted here for other entry points.
 LOCAL_SOURCE=${LOCAL_SOURCE:-false}
+# Set by install-jukebox.sh when the source was cloned, so it is a git repository already
+GIT_CLONED=${GIT_CLONED:-false}
 
 SHARED_PATH="${INSTALLATION_PATH}/shared"
 SETTINGS_PATH="${SHARED_PATH}/settings"

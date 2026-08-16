@@ -195,12 +195,22 @@ directory as a local git repository and builds the Web App on the device.
 
 You can also install a specific branch and/or a fork repository. Update the variables to refer to your desired location. (The URL must not necessarily be updated, unless you have actually updated the file being downloaded.)
 
-> [!IMPORTANT]
-> A fork repository must be named '*RPi-Jukebox-RFID*' like the official repository
-
 ```bash
 cd; GIT_USER='MiczFlor' GIT_BRANCH='future3/develop' bash <(wget -qO- https://raw.githubusercontent.com/MiczFlor/RPi-Jukebox-RFID/future3/develop/installation/install-jukebox.sh)
 ```
+
+A repository that is not named *RPi-Jukebox-RFID* works as well, its name is given
+with `GIT_REPO_NAME`. The `wget` URL points at the same repository, because that is
+where the installer itself is read from.
+
+```bash
+cd; GIT_USER='anjagenser' GIT_REPO_NAME='phoniebox' GIT_BRANCH='master' bash <(wget -qO- https://raw.githubusercontent.com/anjagenser/phoniebox/master/installation/install-jukebox.sh)
+```
+
+The source is cloned with `git`, so the repository must be readable without
+credentials. It is always cloned to `~/RPi-Jukebox-RFID`, whatever the repository is
+called, because all documentation refers to that location. `GIT_URL` overrides the
+whole clone URL if the repository is not hosted on GitHub.
 
 > [!NOTE]
 > The Installation of the official repository's release branches ([Stable Release](#stable-release) and [Pre-Release](#pre-release)) will deploy a pre-build bundle of the Web App.

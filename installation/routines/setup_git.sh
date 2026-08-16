@@ -139,12 +139,13 @@ _git_convert_tardir_git_repo() {
   unset HASH_BRANCH
 }
 
-# Local source installs (see install-jukebox.sh) must not talk to GitHub: the tree
-# may hold unpublished changes and there is no tarball hash to check out. Turn the
-# directory into a self-contained repository so updates/diffs stay possible.
+# Used for local source installs and for clones (see install-jukebox.sh). Neither may
+# talk to GitHub here: a local tree may hold unpublished changes and has no tarball
+# hash to check out, and a clone is a complete repository already. A tree that is not
+# a repository yet is turned into a self-contained one, so updates/diffs stay possible.
 _git_init_local_repo() {
   log "****************************************************
-*** Initializing the local source tree as git repository
+*** Preparing the source tree as git repository
 ****************************************************"
 
   if [[ -d .git ]]; then
@@ -176,7 +177,7 @@ _git_repo_check() {
 _run_init_git_repo_from_tardir() {
     cd "${INSTALLATION_PATH}" || exit_on_error
     _git_install_os_dependencies
-    if [[ "${LOCAL_SOURCE}" == true ]]; then
+    if [[ "${LOCAL_SOURCE}" == true || "${GIT_CLONED}" == true ]]; then
         _git_init_local_repo
     else
         _git_convert_tardir_git_repo

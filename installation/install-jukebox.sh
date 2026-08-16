@@ -8,15 +8,22 @@
 # you may specify them like this
 # cd; GIT_USER='MiczFlor' GIT_BRANCH='future3/develop' bash <(wget -qO- https://raw.githubusercontent.com/MiczFlor/RPi-Jukebox-RFID/future3/develop/installation/install-jukebox.sh)
 #
+# A repository that is not named 'RPi-Jukebox-RFID' works as well, the name only has
+# to be given along with the user
+# cd; GIT_USER='anjagenser' GIT_REPO_NAME='phoniebox' GIT_BRANCH='master' bash <(wget -qO- https://raw.githubusercontent.com/anjagenser/phoniebox/master/installation/install-jukebox.sh)
+#
 export LC_ALL=C
 
 # Set Repo variables if not specified when calling the script
 GIT_USER=${GIT_USER:-"MiczFlor"}
 GIT_BRANCH=${GIT_BRANCH:-"future3/main"}
+GIT_REPO_NAME=${GIT_REPO_NAME:-"RPi-Jukebox-RFID"}
+GIT_URL=${GIT_URL:-"https://github.com/${GIT_USER}/${GIT_REPO_NAME}"}
 
 # Constants
-GIT_REPO_NAME="RPi-Jukebox-RFID"
-GIT_URL="https://github.com/${GIT_USER}/${GIT_REPO_NAME}"
+# The install directory does NOT follow the repository name: all documentation, and
+# the manual recovery steps in it, refer to this one location.
+INSTALL_DIR_NAME="RPi-Jukebox-RFID"
 echo GIT_BRANCH $GIT_BRANCH
 echo GIT_URL $GIT_URL
 
@@ -42,8 +49,10 @@ fi
 if [[ "$LOCAL_SOURCE" == true ]]; then
     INSTALLATION_PATH="${LOCAL_SOURCE_PATH}"
 else
-    INSTALLATION_PATH="${HOME_PATH}/${GIT_REPO_NAME}"
+    INSTALLATION_PATH="${HOME_PATH}/${INSTALL_DIR_NAME}"
 fi
+# Set by _download_jukebox_source: the source is a clone and already a git repository
+GIT_CLONED=false
 INSTALL_ID=$(date +%s)
 INSTALLATION_LOGFILE="${HOME_PATH}/INSTALL-${INSTALL_ID}.log"
 
@@ -136,25 +145,26 @@ files and run the installation on a fresh image."
 
 _download_jukebox_source() {
   log "#########################################################"
-  print_c "Downloading Phoniebox software from Github ..."
-  print_lc "Download Source: ${GIT_URL}/${GIT_BRANCH}"
+  print_c "Cloning Phoniebox software ..."
+  print_lc "Clone Source: ${GIT_URL} (branch ${GIT_BRANCH})"
+
+  # A clone instead of a tarball download: it works for any repository name and any
+  # branch name, and it leaves a complete repository behind, so setup_git has nothing
+  # to convert afterwards. git is installed here because setup_git runs much later.
+  sudo apt-get -y update || exit_on_error "ERROR: apt-get update failed."
+  sudo apt-get -y install git --no-install-recommends || exit_on_error "ERROR: Can't install git."
 
   cd "${HOME_PATH}" || exit_on_error "ERROR: Changing to home dir failed."
-  wget -qO- "${GIT_URL}/tarball/${GIT_BRANCH}" | tar xz
-  # Use case insensitive search/sed because user names in Git Hub are case insensitive
-  local git_repo_download=$(find . -maxdepth 1 -type d -iname "${GIT_USER}-${GIT_REPO_NAME}-*")
-  log "GIT REPO DOWNLOAD = $git_repo_download"
-  GIT_HASH=$(echo "$git_repo_download" | sed -rn "s/.*${GIT_USER}-${GIT_REPO_NAME}-([0-9a-fA-F]+)/\1/ip")
-  # Save the git hash for this particular download for later git repo initialization
+  git clone --branch "${GIT_BRANCH}" "${GIT_URL}" "${INSTALLATION_PATH}" \
+    || exit_on_error "ERROR: Can't clone ${GIT_URL} (branch ${GIT_BRANCH}).
+Check repository name, branch name and that the repository is readable."
+
+  GIT_HASH=$(git -C "${INSTALLATION_PATH}" rev-parse HEAD) \
+    || exit_on_error "ERROR: Couldn't determine git hash of the clone."
+  GIT_CLONED=true
   log "GIT HASH = $GIT_HASH"
-  if [[ -z "${git_repo_download}" ]]; then
-    exit_on_error "ERROR: Couldn't find git download."
-  fi
-  if [[ -z "${GIT_HASH}" ]]; then
-    exit_on_error "ERROR: Couldn't determine git hash from download."
-  fi
-  mv "$git_repo_download" "$GIT_REPO_NAME" || exit_on_error "ERROR: Can't overwrite existing installation."
-  log "\nDONE: Downloading Phoniebox software from Github"
+
+  log "\nDONE: Cloning Phoniebox software"
   log "#########################################################"
 }
 
@@ -163,9 +173,9 @@ _prepare_local_source() {
   print_lc "Installing the local source tree at ${INSTALLATION_PATH}"
   print_lc "(no download from GitHub)"
 
-  if [[ "${INSTALLATION_PATH}" != "${HOME_PATH}/${GIT_REPO_NAME}" ]]; then
+  if [[ "${INSTALLATION_PATH}" != "${HOME_PATH}/${INSTALL_DIR_NAME}" ]]; then
     print_lc "NOTE: the source is not at the documented location
-      ${HOME_PATH}/${GIT_REPO_NAME}
+      ${HOME_PATH}/${INSTALL_DIR_NAME}
       Paths in the documentation refer to that location."
   fi
 
