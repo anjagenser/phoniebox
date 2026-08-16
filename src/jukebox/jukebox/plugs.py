@@ -225,7 +225,12 @@ def _deduce_package_origin(obj: Any) -> Union[str, None]:
 def _enlist(package, plugin_obj, plugin_name, *, replace=False):
     """Internal function for putting the plugin_obj in the storage container"""
     if package not in _PLUGINS:
-        raise NameError(f"Package '{package}' not registered")
+        if not ALLOW_DIRECT_IMPORTS:
+            raise NameError(f"Package '{package}' not registered")
+        # Setup tools import plugin modules directly, so a module that registers into
+        # another module's package (e.g. bluetooth -> 'host') finds no loaded package
+        # to attach to. Without a container here, importing that module raises.
+        _PLUGINS[package] = PluginPackageClass(package)
     if (replace is False) and (plugin_name in _PLUGINS[package].plugins):
         raise NameError(f"Plugin with '{package}.{plugin_name}' already registered "
                         f"(points to: '{_PLUGINS[package].loaded_from}.{_PLUGINS[package].plugins[plugin_name].__name__}')")
