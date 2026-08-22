@@ -3,6 +3,10 @@ Description=Mopidy music server (Spotify support)
 After=pulseaudio.service network.target
 
 [Service]
+# Mopidy logs to stdout, which Python block-buffers when it is a pipe: without
+# this the journal stays empty for minutes and startup errors arrive too late
+# to be useful.
+Environment=PYTHONUNBUFFERED=1
 ExecStartPre=%%WAIT_SPOTIFY_AUTH_BIN%% %%MOPIDY_CONF_PATH%%
 ExecStart=%%MOPIDY_BIN%% --config %%MOPIDY_CONF_PATH%%
 Restart=on-failure
