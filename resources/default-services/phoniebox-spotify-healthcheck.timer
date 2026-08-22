@@ -1,0 +1,11 @@
+[Unit]
+Description=Timer to run the Spotify watchdog every five minutes
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=5min
+AccuracySec=30s
+Unit=%%SPOTIFY_HEALTHCHECK_SERVICE%%
+
+[Install]
+WantedBy=timers.target

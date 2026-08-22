@@ -1,0 +1,8 @@
+[Unit]
+Description=Phoniebox Spotify watchdog, restarts Mopidy when its Spotify login died
+After=mopidy.service
+Wants=mopidy.service
+
+[Service]
+Type=oneshot
+ExecStart=%%SPOTIFY_HEALTHCHECK_BIN%% %%MOPIDY_CONF_PATH%%

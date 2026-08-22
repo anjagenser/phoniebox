@@ -5,6 +5,11 @@ PLAYLISTS_PATH="${SHARED_PATH}/playlists"
 
 MOPIDY_SYSTEMD_USR_SERVICE="${SYSTEMD_USR_PATH}/mopidy.service"
 WAIT_SPOTIFY_AUTH_BIN="/usr/local/bin/phoniebox-wait-spotify-auth"
+SPOTIFY_HEALTHCHECK_BIN="/usr/local/bin/phoniebox-spotify-healthcheck"
+SPOTIFY_HEALTHCHECK_SERVICE="phoniebox-spotify-healthcheck.service"
+SPOTIFY_HEALTHCHECK_SERVICE_PATH="${SYSTEMD_USR_PATH}/${SPOTIFY_HEALTHCHECK_SERVICE}"
+SPOTIFY_HEALTHCHECK_TIMER="phoniebox-spotify-healthcheck.timer"
+SPOTIFY_HEALTHCHECK_TIMER_PATH="${SYSTEMD_USR_PATH}/${SPOTIFY_HEALTHCHECK_TIMER}"
 
 _mopidy_install_os_dependencies() {
     log "  Add Mopidy APT repository"
@@ -106,6 +111,10 @@ _mopidy_configure() {
     sudo cp -f "${INSTALLATION_PATH}/resources/default-services/phoniebox-wait-spotify-auth" "${WAIT_SPOTIFY_AUTH_BIN}"
     sudo chmod +x "${WAIT_SPOTIFY_AUTH_BIN}"
 
+    # Waiting for the network only makes the lost login unlikely, it does not
+    # rule it out, and a logged-out Mopidy stays that way until it is restarted.
+    _mopidy_install_spotify_healthcheck
+
     # Register Mopidy as a user systemd service
     sudo cp -f "${INSTALLATION_PATH}/resources/default-services/mopidy.service" "${MOPIDY_SYSTEMD_USR_SERVICE}"
     sudo sed -i "s|%%MOPIDY_CONF_PATH%%|${MOPIDY_CONF_PATH}|g" "${MOPIDY_SYSTEMD_USR_SERVICE}"
@@ -126,6 +135,21 @@ _mopidy_configure() {
 
     systemctl --user daemon-reload
     systemctl --user enable mopidy.service
+    systemctl --user enable "${SPOTIFY_HEALTHCHECK_TIMER}"
+}
+
+_mopidy_install_spotify_healthcheck() {
+    sudo cp -f "${INSTALLATION_PATH}/resources/default-services/phoniebox-spotify-healthcheck" "${SPOTIFY_HEALTHCHECK_BIN}"
+    sudo chmod +x "${SPOTIFY_HEALTHCHECK_BIN}"
+
+    sudo cp -f "${INSTALLATION_PATH}/resources/default-services/phoniebox-spotify-healthcheck.service" "${SPOTIFY_HEALTHCHECK_SERVICE_PATH}"
+    sudo sed -i "s|%%SPOTIFY_HEALTHCHECK_BIN%%|${SPOTIFY_HEALTHCHECK_BIN}|g" "${SPOTIFY_HEALTHCHECK_SERVICE_PATH}"
+    sudo sed -i "s|%%MOPIDY_CONF_PATH%%|${MOPIDY_CONF_PATH}|g" "${SPOTIFY_HEALTHCHECK_SERVICE_PATH}"
+    sudo chmod 644 "${SPOTIFY_HEALTHCHECK_SERVICE_PATH}"
+
+    sudo cp -f "${INSTALLATION_PATH}/resources/default-services/phoniebox-spotify-healthcheck.timer" "${SPOTIFY_HEALTHCHECK_TIMER_PATH}"
+    sudo sed -i "s|%%SPOTIFY_HEALTHCHECK_SERVICE%%|${SPOTIFY_HEALTHCHECK_SERVICE}|g" "${SPOTIFY_HEALTHCHECK_TIMER_PATH}"
+    sudo chmod 644 "${SPOTIFY_HEALTHCHECK_TIMER_PATH}"
 }
 
 _mopidy_check() {
@@ -160,6 +184,13 @@ Ensure 'python3-pip' is installed (see packages-mopidy.txt) and that
 
     verify_files_exists "${WAIT_SPOTIFY_AUTH_BIN}"
     verify_file_contains_string "ExecStartPre=${WAIT_SPOTIFY_AUTH_BIN}" "${MOPIDY_SYSTEMD_USR_SERVICE}"
+
+    verify_files_exists "${SPOTIFY_HEALTHCHECK_BIN}"
+    verify_files_exists "${SPOTIFY_HEALTHCHECK_SERVICE_PATH}"
+    verify_file_contains_string "ExecStart=${SPOTIFY_HEALTHCHECK_BIN}" "${SPOTIFY_HEALTHCHECK_SERVICE_PATH}"
+    verify_files_exists "${SPOTIFY_HEALTHCHECK_TIMER_PATH}"
+    verify_file_contains_string "Unit=${SPOTIFY_HEALTHCHECK_SERVICE}" "${SPOTIFY_HEALTHCHECK_TIMER_PATH}"
+    verify_service_enablement "${SPOTIFY_HEALTHCHECK_TIMER}" enabled --user
 }
 
 _run_setup_mopidy() {

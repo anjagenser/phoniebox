@@ -1,0 +1,163 @@
+#!/usr/bin/env bash
+#
+# Phoniebox Spotify watchdog
+#
+# Mopidy-Spotify fetches its OAuth token once, in on_start(), and never tries
+# again for the life of the process. When that single request fails - a boot
+# race with the WiFi, a hiccup at auth.mopidy.com - the web client stays logged
+# out: every Spotify card answers "directory or file not found" while local
+# music keeps playing and hides the problem. phoniebox-wait-spotify-auth makes
+# that race unlikely but cannot rule it out; the box this was written for lost
+# the login 14s *after* the endpoint had answered and ran 5 days that way.
+#
+# So probe the running Mopidy and restart it when Spotify is dead but the
+# network is fine. Playback is never interrupted: a restart waits for idle.
+#
+# Runs from phoniebox-spotify-healthcheck.timer, output goes to the journal.
+
+CONF="${1:?usage: $(basename "$0") <mopidy.conf>}"
+
+STATE_FILE="${XDG_RUNTIME_DIR:-/tmp}/phoniebox-spotify-healthcheck.state"
+TOKEN_URL="https://auth.mopidy.com/spotify/token"
+# Any term with hits in every market: an empty answer then means "logged out",
+# not "nothing found".
+PROBE_TERM="music"
+RPC_TIMEOUT=20
+# Consecutive dead probes before Mopidy is restarted, and restarts that may go
+# unrewarded before the watchdog backs off for COOLDOWN_CHECKS runs.
+FAIL_RESTART=2
+MAX_RESTARTS=3
+COOLDOWN_CHECKS=12
+
+log() { echo "$*"; }
+
+_conf_setting() {
+    local section="$1" key="$2"
+    awk -F"[[:space:]]*=[[:space:]]*" -v section="[${section}]" -v key="$key" '
+        /^\[/ { in_section = ($0 == section); next }
+        in_section && $1 == key { print $2; exit }
+    ' "$CONF" 2>/dev/null
+}
+
+_read_state() {
+    local fails restarts cooldown
+    read -r fails restarts cooldown <<< "$(cat "$STATE_FILE" 2>/dev/null)"
+    [[ "$fails" =~ ^[0-9]+$ ]] || fails=0
+    [[ "$restarts" =~ ^[0-9]+$ ]] || restarts=0
+    [[ "$cooldown" =~ ^[0-9]+$ ]] || cooldown=0
+    echo "$fails $restarts $cooldown"
+}
+
+_write_state() {
+    echo "$1 $2 $3" > "$STATE_FILE"
+}
+
+_rpc() {
+    curl -s --max-time "$RPC_TIMEOUT" -H 'Content-Type: application/json' -d "$1" "$RPC_URL"
+}
+
+# 0 = Spotify answers, 1 = logged out (empty result), 2 = no answer from Mopidy
+_probe_spotify() {
+    local response
+    response=$(_rpc '{"jsonrpc":"2.0","id":1,"method":"core.library.search","params":{"query":{"any":["'"${PROBE_TERM}"'"]},"uris":["spotify:"]}}')
+    [[ -n "$response" ]] || return 2
+
+    RESPONSE="$response" python3 -c '
+import json, os, sys
+try:
+    result = json.loads(os.environ["RESPONSE"]).get("result")
+except ValueError:
+    sys.exit(2)
+if result is None:
+    sys.exit(2)
+for entry in result:
+    if entry.get("tracks") or entry.get("albums") or entry.get("artists"):
+        sys.exit(0)
+sys.exit(1)
+'
+}
+
+_is_playing() {
+    _rpc '{"jsonrpc":"2.0","id":1,"method":"core.playback.get_state"}' | grep -q '"playing"'
+}
+
+main() {
+    local fails restarts cooldown
+
+    if [[ ! -r "$CONF" ]]; then
+        log "state=SKIP cannot read ${CONF}"
+        exit 0
+    fi
+
+    if [[ "$(_conf_setting spotify enabled)" != "true" || -z "$(_conf_setting spotify client_id)" ]]; then
+        log "state=SKIP Spotify not configured"
+        exit 0
+    fi
+
+    if ! systemctl --user is-active --quiet mopidy.service; then
+        log "state=SKIP mopidy is not running"
+        exit 0
+    fi
+
+    local host port
+    host="$(_conf_setting http hostname)"
+    port="$(_conf_setting http port)"
+    RPC_URL="http://${host:-127.0.0.1}:${port:-6680}/mopidy/rpc"
+
+    read -r fails restarts cooldown <<< "$(_read_state)"
+
+    _probe_spotify
+    case $? in
+        0)
+            [[ "$fails" -eq 0 && "$restarts" -eq 0 && "$cooldown" -eq 0 ]] || log "recovered after ${restarts} restart(s)"
+            _write_state 0 0 0
+            log "state=OK"
+            exit 0
+            ;;
+        2)
+            # Mopidy is up but its HTTP API did not answer - nothing to judge.
+            log "state=NO_RPC url=${RPC_URL}"
+            exit 0
+            ;;
+    esac
+
+    # An empty answer also looks like this when the internet is gone, and then
+    # the login is innocent: the network watchdog owns that case.
+    if ! curl -s -o /dev/null --max-time 5 "$TOKEN_URL"; then
+        log "state=NETWORK_DOWN Spotify unreachable, not blaming the login"
+        exit 0
+    fi
+
+    if (( cooldown > 0 )); then
+        cooldown=$(( cooldown - 1 ))
+        _write_state "$fails" "$restarts" "$cooldown"
+        log "state=COOLDOWN restarts did not help, ${cooldown} check(s) before trying again"
+        exit 0
+    fi
+
+    (( fails < FAIL_RESTART )) && fails=$(( fails + 1 ))
+    if (( fails < FAIL_RESTART )); then
+        _write_state "$fails" "$restarts" "$cooldown"
+        log "state=SPOTIFY_DEAD failures=${fails} waiting for confirmation"
+        exit 0
+    fi
+
+    if _is_playing; then
+        _write_state "$fails" "$restarts" "$cooldown"
+        log "state=SPOTIFY_DEAD failures=${fails} restart deferred, playback in progress"
+        exit 0
+    fi
+
+    if (( restarts >= MAX_RESTARTS )); then
+        _write_state 0 0 "$COOLDOWN_CHECKS"
+        log "ALERT: Spotify still dead after ${restarts} restarts, backing off for ${COOLDOWN_CHECKS} checks"
+        exit 0
+    fi
+
+    restarts=$(( restarts + 1 ))
+    _write_state 0 "$restarts" "$cooldown"
+    log "state=SPOTIFY_DEAD restarting mopidy (restart ${restarts}/${MAX_RESTARTS})"
+    systemctl --user restart mopidy.service
+}
+
+main "$@"
