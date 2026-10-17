@@ -921,18 +921,16 @@ class PlayerMPD:
         no-auth ``open.spotify.com/embed`` page's ``__NEXT_DATA__`` JSON, where
         ``entity.title`` is the album/track/playlist name and ``entity.subtitle``
         the artist (albums/tracks) or owner (playlists).
+
+        Network errors propagate so the caller does not cache a transient failure.
         """
         match = re.match(r'spotify:(track|album|playlist|artist):([A-Za-z0-9]+)', uri)
         if not match:
             return None, None
         embed_url = f'https://open.spotify.com/embed/{match.group(1)}/{match.group(2)}'
-        try:
-            req = urllib.request.Request(embed_url, headers={'User-Agent': 'phoniebox'})
-            with urllib.request.urlopen(req, timeout=10) as response:
-                html = response.read().decode('utf-8', errors='replace')
-        except Exception as e:
-            logger.debug(f"_resolve_spotify_meta('{uri}') fetch failed: {e.__class__.__name__}: {e}")
-            return None, None
+        req = urllib.request.Request(embed_url, headers={'User-Agent': 'phoniebox'})
+        with urllib.request.urlopen(req, timeout=10) as response:
+            html = response.read().decode('utf-8', errors='replace')
         blob = re.search(r'<script id="__NEXT_DATA__" type="application/json">(.*?)</script>', html, re.S)
         if not blob:
             return None, None
@@ -958,11 +956,7 @@ class PlayerMPD:
 
         if uri in _uri_details_cache:
             cached = _uri_details_cache[uri]
-            # Backwards compatible with an older cache that stored just the name.
-            if isinstance(cached, dict):
-                name, artist = cached.get('name'), cached.get('artist')
-            else:
-                name, artist = cached, None
+            name, artist = cached['name'], cached['artist']
         else:
             name = None
             artist = None
