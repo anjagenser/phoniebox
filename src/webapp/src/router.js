@@ -1,16 +1,26 @@
-import React from 'react'
+import React, { lazy, Suspense } from 'react'
 import { Route, HashRouter, Routes, useLocation } from 'react-router-dom'
 
 import Cards from './components/Cards';
-import Labels from './components/Labels';
 import Library from './components/Library';
 import Navigation from './components/Navigation';
 import Player from './components/Player'
 import MiniPlayer, { MINI_PLAYER_HEIGHT, NAV_HEIGHT, SAFE_AREA_BOTTOM } from './components/Player/mini-player';
-import Settings from './components/Settings'
-import Statistics from './components/Statistics'
 
+import Box from '@mui/material/Box';
+import CircularProgress from '@mui/material/CircularProgress';
 import Grid from '@mui/material/Grid';
+
+// Rarely opened pages load on first visit, so the kiosk does not parse them at boot.
+const Labels = lazy(() => import('./components/Labels'));
+const Settings = lazy(() => import('./components/Settings'));
+const Statistics = lazy(() => import('./components/Statistics'));
+
+const PageLoading = () => (
+  <Box sx={{ display: 'flex', justifyContent: 'center', pt: 4 }}>
+    <CircularProgress />
+  </Box>
+);
 
 const AppLayout = () => {
   const { pathname } = useLocation();
@@ -33,34 +43,36 @@ const AppLayout = () => {
             : `calc(${NAV_HEIGHT + MINI_PLAYER_HEIGHT}px + ${SAFE_AREA_BOTTOM})`,
         }}
       >
-        <Routes>
-          <Route
-            index
-            element={<Player/>}
-            exact
-          />
-          <Route
-            path="library/*"
-            element={<Library/>}
-          />
-          <Route
-            path="cards/*"
-            element={<Cards/>}
-          />
-          <Route
-            path="labels/*"
-            element={<Labels/>}
-          />
-          <Route
-            path="settings/*"
-            element={<Settings/>}
-            exact
-          />
-          <Route
-            path="statistics/*"
-            element={<Statistics/>}
-          />
-        </Routes>
+        <Suspense fallback={<PageLoading />}>
+          <Routes>
+            <Route
+              index
+              element={<Player/>}
+              exact
+            />
+            <Route
+              path="library/*"
+              element={<Library/>}
+            />
+            <Route
+              path="cards/*"
+              element={<Cards/>}
+            />
+            <Route
+              path="labels/*"
+              element={<Labels/>}
+            />
+            <Route
+              path="settings/*"
+              element={<Settings/>}
+              exact
+            />
+            <Route
+              path="statistics/*"
+              element={<Statistics/>}
+            />
+          </Routes>
+        </Suspense>
       </Grid>
       {!isHome && <MiniPlayer />}
       <Navigation />

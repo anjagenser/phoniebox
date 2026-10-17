@@ -1,5 +1,3 @@
-import { jsPDF } from 'jspdf';
-
 import {
   PAGE_W,
   LABEL_W,
@@ -183,7 +181,9 @@ const slotBleed = (within) => {
 
 // Without this hint most viewers print with "fit to page", shrinking the sheet
 // off the die-cut; HERMA's own PDFs print at 100%.
-const newSheetDoc = () => {
+// jsPDF is only needed for the download itself, so it is fetched on first use.
+const newSheetDoc = async () => {
+  const { jsPDF } = await import('jspdf');
   const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
   doc.viewerPreferences({ PrintScaling: 'None' });
   return doc;
@@ -198,7 +198,7 @@ export const buildLabelsPdf = async (labels, options = {}) => {
     offsetY = 0,
   } = options;
 
-  const doc = newSheetDoc();
+  const doc = await newSheetDoc();
   let currentPage = 0;
 
   for (let i = 0; i < labels.length; i += 1) {
@@ -229,8 +229,8 @@ export const downloadLabelsPdf = async (labels, options = {}) => {
 
 // Outlines only: whatever is off on this page comes from the printer or the print
 // dialog's scaling, not from images or per-label settings.
-export const downloadTestPagePdf = ({ offsetX = 0, offsetY = 0, rulerText = '' } = {}) => {
-  const doc = newSheetDoc();
+export const downloadTestPagePdf = async ({ offsetX = 0, offsetY = 0, rulerText = '' } = {}) => {
+  const doc = await newSheetDoc();
   doc.setLineWidth(0.2);
   doc.setFontSize(9);
   for (let within = 0; within < SLOTS_PER_SHEET; within += 1) {
