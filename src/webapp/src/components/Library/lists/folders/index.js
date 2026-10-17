@@ -46,6 +46,8 @@ const Folders = ({
   const [isLoading, setIsLoading] = useState(true);
   const [folderCover, setFolderCover] = useState(null);
   const [covers, setCovers] = useState({});
+  // Bumped per loaded list so covers are fetched once per load, not also for the empty initial list.
+  const [listVersion, setListVersion] = useState(0);
 
   const [newFolderOpen, setNewFolderOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
@@ -57,7 +59,10 @@ const Folders = ({
     const { result, error } = await request('folderList', { folder: decodedDir });
     setIsLoading(false);
 
-    if (result) setFolders(result);
+    if (result) {
+      setFolders(result);
+      setListVersion((v) => v + 1);
+    }
     if (error) setError(error);
   }, [decodedDir]);
 
@@ -67,7 +72,7 @@ const Folders = ({
   useEffect(() => {
     let active = true;
     setCovers({});
-    if (!showCovers) return;
+    if (!showCovers || !listVersion) return;
     request('getFolderCovers', { folder: decodedDir }).then(({ result }) => {
       if (!active || !result) return;
       const mapped = {};
@@ -77,18 +82,18 @@ const Folders = ({
       setCovers(mapped);
     });
     return () => { active = false; };
-  }, [decodedDir, showCovers, folders]);
+  }, [decodedDir, showCovers, listVersion]);
 
   useEffect(() => {
     let active = true;
     setFolderCover(null);
-    if (decodedDir !== ROOT_DIR && showCovers) {
+    if (decodedDir !== ROOT_DIR && showCovers && listVersion) {
       request('getFolderCoverArt', { folder: decodedDir }).then(({ result }) => {
         if (active) setFolderCover(cachePath(result));
       });
     }
     return () => { active = false; };
-  }, [decodedDir, showCovers, folders]);
+  }, [decodedDir, showCovers, listVersion]);
 
   const search = ({ name }) => {
     if (musicFilter === '') return true;
@@ -162,6 +167,7 @@ const Folders = ({
         <FolderList
           dir={dir}
           folders={filteredFolders}
+          covers={covers}
           isSelecting={isSelecting}
           registerMusicToCard={registerMusicToCard}
           onChanged={fetchFolderList}

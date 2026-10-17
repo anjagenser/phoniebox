@@ -46,7 +46,7 @@ const FolderList = ({
       }
       {folders.length > 0 && folders.map((folder, key) =>
         <FolderListItem
-          key={key}
+          key={folder.relpath ?? key}
           folder={folder}
           isSelecting={isSelecting}
           registerMusicToCard={registerMusicToCard}
