@@ -32,9 +32,21 @@ if [[ "$(_spotify_setting enabled)" != "true" || -z "$(_spotify_setting client_i
     exit 0
 fi
 
+deadline=$(( SECONDS + TIMEOUT ))
+
+# Waiting out the full timeout on an offline boot also holds back jukebox-daemon,
+# which is ordered after Mopidy: no cards, no buttons. NetworkManager knows when
+# it has settled, so only keep waiting when that left a route to the internet.
+if command -v nm-online >/dev/null; then
+    nm-online -s -q -t "$TIMEOUT"
+fi
+if [[ -z "$(ip route show default 2>/dev/null)" ]]; then
+    echo "wait-spotify-auth: no default route after ${SECONDS}s, starting without waiting"
+    exit 0
+fi
+
 # Any HTTP answer proves reachability; the 401 for an unauthenticated request is
 # as good as a token here.
-deadline=$(( SECONDS + TIMEOUT ))
 while (( SECONDS < deadline )); do
     if curl -s -o /dev/null --max-time 5 "$TOKEN_URL"; then
         echo "wait-spotify-auth: token endpoint reachable after ${SECONDS}s"
