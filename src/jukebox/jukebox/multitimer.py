@@ -102,7 +102,7 @@ class MultiTimer(threading.Thread):
                     break
                 else:
                     self.event.clear()
-            self.function(iteration=-1, *self.args, **self.kwargs)
+            self._call(iteration=-1)
 
     def run_limited(self):
         """Run the timer for a limited number of iterations.
@@ -117,7 +117,21 @@ class MultiTimer(threading.Thread):
                     break
                 else:
                     self.event.clear()
+            self._call(iteration=iteration)
+
+    def _call(self, iteration):
+        # An uncaught exception would end the thread for good, and only stderr would
+        # know: the player status poll died this way and froze the player state.
+        # Logged once per distinct error, a 0.25s poll would otherwise flood the SD card.
+        try:
             self.function(*self.args, iteration=iteration, **self.kwargs)
+        except Exception as e:
+            error = f"{e.__class__.__name__}: {e}"
+            if error != getattr(self, '_last_error', None):
+                self._last_error = error
+                logger.exception(f"Timer '{self.name}' function failed: {error}")
+        else:
+            self._last_error = None
 
     def run(self):
         """Start the timer execution.

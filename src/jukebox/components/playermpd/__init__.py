@@ -417,12 +417,13 @@ class PlayerMPD:
 
         if self.mpd_status.get('elapsed') is not None:
             self.current_folder_status["ELAPSED"] = self.mpd_status['elapsed']
-            self.music_player_status['player_status']["CURRENTSONGPOS"] = self.mpd_status['song']
-            self.music_player_status['player_status']["CURRENTFILENAME"] = self.mpd_status['file']
+            self.music_player_status['player_status']["CURRENTSONGPOS"] = self.mpd_status.get('song')
+            self.music_player_status['player_status']["CURRENTFILENAME"] = self.mpd_status.get('file')
 
+        # Mopidy reports a current file without 'song' while a new queue starts playing.
         if self.mpd_status.get('file') is not None:
             self.current_folder_status["CURRENTFILENAME"] = self.mpd_status['file']
-            self.current_folder_status["CURRENTSONGPOS"] = self.mpd_status['song']
+            self.current_folder_status["CURRENTSONGPOS"] = self.mpd_status.get('song')
             self.current_folder_status["ELAPSED"] = self.mpd_status.get('elapsed', '0.0')
             self.current_folder_status["PLAYSTATUS"] = self.mpd_status['state']
 
