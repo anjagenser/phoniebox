@@ -20,15 +20,30 @@ const loadImage = (src) =>
     img.src = src;
   });
 
-const drawImageFit = (ctx, img, w, h, fit) => {
+export const DEFAULT_IMAGE_SIZE = 100;
+
+// The image fills a centred box of `size` percent of the label; cover crops to that box.
+const drawImageFit = (ctx, img, w, h, fit, size) => {
+  const bw = (w * size) / 100;
+  const bh = (h * size) / 100;
+  const bx = (w - bw) / 2;
+  const by = (h - bh) / 2;
   const scale =
     fit === 'contain'
-      ? Math.min(w / img.width, h / img.height)
-      : Math.max(w / img.width, h / img.height);
+      ? Math.min(bw / img.width, bh / img.height)
+      : Math.max(bw / img.width, bh / img.height);
   const dw = img.width * scale;
   const dh = img.height * scale;
-  ctx.drawImage(img, (w - dw) / 2, (h - dh) / 2, dw, dh);
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(bx, by, bw, bh);
+  ctx.clip();
+  ctx.drawImage(img, bx + (bw - dw) / 2, by + (bh - dh) / 2, dw, dh);
+  ctx.restore();
 };
+
+export const effectiveFit = (label, fit) => label.fit || fit;
+export const effectiveSize = (label) => label.size ?? DEFAULT_IMAGE_SIZE;
 
 const fitFont = (ctx, text, maxWidth, startPx, minPx) => {
   let size = startPx;
@@ -94,7 +109,7 @@ const drawContent = async (ctx, label, w, h, { fit, showCaptions }) => {
 
   const caption = (label.caption || '').trim();
   if (img) {
-    drawImageFit(ctx, img, w, h, fit);
+    drawImageFit(ctx, img, w, h, effectiveFit(label, fit), effectiveSize(label));
     if (showCaptions && caption) drawCaptionBand(ctx, caption, w, h);
   } else if (caption) {
     drawCenteredText(ctx, caption, w, h);

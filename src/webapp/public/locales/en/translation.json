@@ -216,7 +216,14 @@
       "sheet": "Sheet {{current}} of {{total}}",
       "used": "used",
       "remove": "Remove label",
-      "rotate": "Turn 90°"
+      "rotate": "Turn 90°",
+      "edit": "Format label"
+    },
+    "edit": {
+      "title": "Format label",
+      "size-label": "Image size: {{size}}%",
+      "reset": "Use sheet settings",
+      "done": "Done"
     }
   },
   "library": {

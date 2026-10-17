@@ -6,8 +6,9 @@ import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import CloseIcon from '@mui/icons-material/Close';
 import Rotate90DegreesCwIcon from '@mui/icons-material/Rotate90DegreesCw';
+import TuneIcon from '@mui/icons-material/Tune';
 
-import { renderLabel } from './pdf';
+import { renderLabel, effectiveFit, effectiveSize } from './pdf';
 import {
   PAGE_W,
   PAGE_H,
@@ -21,10 +22,21 @@ import {
 
 const pct = (value, total) => `${(value / total) * 100}%`;
 
-const thumbKey = (label, fit, showCaptions) =>
-  `${fit}|${showCaptions ? 1 : 0}|${label.rotation || 0}|${label.caption || ''}|${label.image || ''}`;
+export const thumbKey = (label, fit, showCaptions) =>
+  `${effectiveFit(label, fit)}|${effectiveSize(label)}|${showCaptions ? 1 : 0}|`
+  + `${label.rotation || 0}|${label.caption || ''}|${label.image || ''}`;
 
-const FilledSlot = ({ thumb, onRemove, onRotate, removeLabel, rotateLabel }) => (
+const overlayButtonSx = {
+  position: 'absolute',
+  padding: '2px',
+  backgroundColor: 'rgba(0,0,0,0.5)',
+  color: '#fff',
+  '&:hover': { backgroundColor: 'rgba(0,0,0,0.7)' },
+};
+
+const FilledSlot = ({
+  thumb, onRemove, onRotate, onEdit, removeLabel, rotateLabel, editLabel,
+}) => (
   <Box
     sx={{
       position: 'absolute',
@@ -39,23 +51,25 @@ const FilledSlot = ({ thumb, onRemove, onRotate, removeLabel, rotateLabel }) => 
         component="img"
         src={thumb}
         alt=""
-        sx={{ width: '100%', height: '100%', display: 'block' }}
+        onClick={onEdit}
+        sx={{ width: '100%', height: '100%', display: 'block', cursor: 'pointer' }}
       />
     )}
+    <IconButton
+      size="small"
+      aria-label={editLabel}
+      title={editLabel}
+      onClick={onEdit}
+      sx={{ ...overlayButtonSx, bottom: 1, left: 1 }}
+    >
+      <TuneIcon sx={{ fontSize: 14 }} />
+    </IconButton>
     <IconButton
       size="small"
       aria-label={rotateLabel}
       title={rotateLabel}
       onClick={onRotate}
-      sx={{
-        position: 'absolute',
-        top: 1,
-        left: 1,
-        padding: '2px',
-        backgroundColor: 'rgba(0,0,0,0.5)',
-        color: '#fff',
-        '&:hover': { backgroundColor: 'rgba(0,0,0,0.7)' },
-      }}
+      sx={{ ...overlayButtonSx, top: 1, left: 1 }}
     >
       <Rotate90DegreesCwIcon sx={{ fontSize: 14 }} />
     </IconButton>
@@ -64,15 +78,7 @@ const FilledSlot = ({ thumb, onRemove, onRotate, removeLabel, rotateLabel }) => 
       aria-label={removeLabel}
       title={removeLabel}
       onClick={onRemove}
-      sx={{
-        position: 'absolute',
-        top: 1,
-        right: 1,
-        padding: '2px',
-        backgroundColor: 'rgba(0,0,0,0.5)',
-        color: '#fff',
-        '&:hover': { backgroundColor: 'rgba(0,0,0,0.7)' },
-      }}
+      sx={{ ...overlayButtonSx, top: 1, right: 1 }}
     >
       <CloseIcon sx={{ fontSize: 14 }} />
     </IconButton>
@@ -86,9 +92,11 @@ const SheetPage = ({
   startOffset,
   onRemove,
   onRotate,
+  onEdit,
   usedLabel,
   removeLabel,
   rotateLabel,
+  editLabel,
 }) => (
   <Box
     sx={{
@@ -147,8 +155,10 @@ const SheetPage = ({
               thumb={thumbs[label.uid]}
               removeLabel={removeLabel}
               rotateLabel={rotateLabel}
+              editLabel={editLabel}
               onRemove={() => onRemove(labelIndex)}
               onRotate={() => onRotate(labelIndex)}
+              onEdit={() => onEdit(labelIndex)}
             />
           )}
         </Box>
@@ -164,6 +174,7 @@ const SheetPreview = ({
   showCaptions = true,
   onRemove,
   onRotate,
+  onEdit,
 }) => {
   const { t } = useTranslation();
   const pages = sheetCount(labels.length, startOffset);
@@ -211,9 +222,11 @@ const SheetPreview = ({
             startOffset={startOffset}
             onRemove={onRemove}
             onRotate={onRotate}
+            onEdit={onEdit}
             usedLabel={t('labels.preview.used')}
             removeLabel={t('labels.preview.remove')}
             rotateLabel={t('labels.preview.rotate')}
+            editLabel={t('labels.preview.edit')}
           />
         </Box>
       ))}

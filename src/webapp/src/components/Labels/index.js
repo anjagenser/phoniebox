@@ -28,6 +28,7 @@ import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import Header from '../Header';
 import CardPicker from './CardPicker';
 import SheetPreview from './SheetPreview';
+import LabelEditor from './LabelEditor';
 import { downloadLabelsPdf } from './pdf';
 import { LABEL_W, LABEL_H, SLOTS_PER_SHEET } from './format';
 import { emit } from '../../context/toast/events';
@@ -43,6 +44,7 @@ const Labels = () => {
   const [offsetX, setOffsetX] = useState(0);
   const [offsetY, setOffsetY] = useState(0);
   const [generating, setGenerating] = useState(false);
+  const [editingUid, setEditingUid] = useState(null);
 
   const counts = useMemo(() => {
     const acc = {};
@@ -68,6 +70,21 @@ const Labels = () => {
     setLabels((prev) => prev.map((label, i) => (
       i === index ? { ...label, rotation: ((label.rotation || 0) + 90) % 360 } : label
     )));
+
+  const updateLabel = (uid, patch) =>
+    setLabels((prev) => prev.map((label) => (
+      label.uid === uid ? { ...label, ...patch } : label
+    )));
+
+  // Back to the sheet-wide settings: the global fit applies again and rotation follows the sheet.
+  const resetLabel = (uid) =>
+    setLabels((prev) => prev.map((label) => {
+      if (label.uid !== uid) return label;
+      const { fit: ignoredFit, size: ignoredSize, ...rest } = label;
+      return { ...rest, rotation };
+    }));
+
+  const editingLabel = labels.find((label) => label.uid === editingUid);
 
   const changeRotation = (value) => {
     setRotation(value);
@@ -237,6 +254,16 @@ const Labels = () => {
           showCaptions={showCaptions}
           onRemove={removeLabel}
           onRotate={rotateLabel}
+          onEdit={(index) => setEditingUid(labels[index]?.uid ?? null)}
+        />
+
+        <LabelEditor
+          label={editingLabel}
+          fit={fit}
+          showCaptions={showCaptions}
+          onChange={(patch) => updateLabel(editingUid, patch)}
+          onReset={() => resetLabel(editingUid)}
+          onClose={() => setEditingUid(null)}
         />
 
         <Divider sx={{ my: 2 }} />

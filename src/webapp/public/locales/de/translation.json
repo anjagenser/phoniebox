@@ -216,7 +216,14 @@
       "sheet": "Blatt {{current}} von {{total}}",
       "used": "belegt",
       "remove": "Etikett entfernen",
-      "rotate": "Um 90° drehen"
+      "rotate": "Um 90° drehen",
+      "edit": "Etikett formatieren"
+    },
+    "edit": {
+      "title": "Etikett formatieren",
+      "size-label": "Bildgrösse: {{size}}%",
+      "reset": "Wie alle Etiketten",
+      "done": "Fertig"
     }
   },
   "library": {
