@@ -220,9 +220,10 @@ class _UploadHandler(BaseHTTPRequestHandler):
                 errors.append(filename)
                 logger.error(f"Failed to save {filename}: {e}")
 
-        # Wait for the MPD scan so uploads are browsable when the client refreshes.
+        # Rescan in the background: the folder view reads the filesystem, so uploads are
+        # browsable at once, and a blocking Mopidy scan can outlast the upload request.
         if saved:
-            plugin.call_ignore_errors('player', 'ctrl', 'update_wait')
+            plugin.call_ignore_errors('player', 'ctrl', 'start_library_rescan')
 
         if errors:
             self._send_text(500, f"Saved {len(saved)}, failed: {', '.join(errors)}")
