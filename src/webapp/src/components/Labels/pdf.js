@@ -5,6 +5,8 @@ import {
   LABEL_W,
   LABEL_H,
   CORNER_R,
+  COLS,
+  ROWS,
   SLOTS_PER_SHEET,
   slotPosition,
 } from './format';
@@ -13,6 +15,12 @@ const DPI = 300;
 const MM_PER_INCH = 25.4;
 const PX_W = Math.round((LABEL_W / MM_PER_INCH) * DPI);
 const PX_H = Math.round((LABEL_H / MM_PER_INCH) * DPI);
+const PX_PER_MM = DPI / MM_PER_INCH;
+
+// Overprint past the die-cut like HERMA's own generator, so a printer that is a
+// millimetre off still leaves no white edge. Must stay below half the column gap.
+export const BLEED = 2;
+const NO_BLEED = { left: 0, top: 0, right: 0, bottom: 0 };
 
 const loadImage = (src) =>
   new Promise((resolve, reject) => {
@@ -26,11 +34,15 @@ export const DEFAULT_IMAGE_SIZE = 100;
 
 // Size zooms the whole image, so shrinking a cropped image reveals what the crop hid
 // instead of cropping it again to a smaller box.
-const drawImageFit = (ctx, img, w, h, fit, size) => {
+// Cover also has to fill the overprint, kept centred on the label so the framing
+// matches the preview.
+const drawImageFit = (ctx, img, w, h, fit, size, bleed) => {
+  const coverW = w + 2 * Math.max(bleed.left, bleed.right);
+  const coverH = h + 2 * Math.max(bleed.top, bleed.bottom);
   const base =
     fit === 'contain'
       ? Math.min(w / img.width, h / img.height)
-      : Math.max(w / img.width, h / img.height);
+      : Math.max(coverW / img.width, coverH / img.height);
   const scale = (base * size) / 100;
   const dw = img.width * scale;
   const dh = img.height * scale;
@@ -50,10 +62,10 @@ const fitFont = (ctx, text, maxWidth, startPx, minPx) => {
   return size;
 };
 
-const drawCaptionBand = (ctx, text, w, h) => {
+const drawCaptionBand = (ctx, text, w, h, bleed) => {
   const bandH = Math.round(h * 0.24);
   ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
-  ctx.fillRect(0, h - bandH, w, bandH);
+  ctx.fillRect(-bleed.left, h - bandH, w + bleed.left + bleed.right, bandH + bleed.bottom);
   fitFont(ctx, text, w * 0.92, Math.round(bandH * 0.5), 18);
   ctx.fillStyle = '#ffffff';
   ctx.textAlign = 'center';
@@ -89,9 +101,11 @@ const drawCenteredText = (ctx, text, w, h) => {
   });
 };
 
-const drawContent = async (ctx, label, w, h, { fit, showCaptions }) => {
+// Laid out against the w x h label area at (0, 0); the canvas extends past it by
+// `bleed` so only the image and caption band spill into the overprint.
+const drawContent = async (ctx, label, w, h, { fit, showCaptions }, bleed) => {
   ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, w, h);
+  ctx.fillRect(-bleed.left, -bleed.top, w + bleed.left + bleed.right, h + bleed.top + bleed.bottom);
 
   let img = null;
   if (label.image) {
@@ -104,43 +118,75 @@ const drawContent = async (ctx, label, w, h, { fit, showCaptions }) => {
 
   const caption = (label.caption || '').trim();
   if (img) {
-    drawImageFit(ctx, img, w, h, effectiveFit(label, fit), effectiveSize(label));
-    if (showCaptions && caption) drawCaptionBand(ctx, caption, w, h);
+    drawImageFit(ctx, img, w, h, effectiveFit(label, fit), effectiveSize(label), bleed);
+    if (showCaptions && caption) drawCaptionBand(ctx, caption, w, h, bleed);
   } else if (caption) {
     drawCenteredText(ctx, caption, w, h);
   }
 };
 
-export const renderLabel = async (label, { fit, showCaptions }) => {
-  const canvas = document.createElement('canvas');
-  canvas.width = PX_W;
-  canvas.height = PX_H;
-  const ctx = canvas.getContext('2d');
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, PX_W, PX_H);
-
-  const rotation = (((label.rotation || 0) % 360) + 360) % 360;
-
-  if (rotation === 0) {
-    await drawContent(ctx, label, PX_W, PX_H, { fit, showCaptions });
-    return canvas.toDataURL('image/jpeg', 0.92);
+// Which page edge each content edge lands on after rotating clockwise.
+const contentBleed = (page, rotation) => {
+  switch (rotation) {
+    case 90: return { top: page.right, right: page.bottom, bottom: page.left, left: page.top };
+    case 180: return { top: page.bottom, right: page.left, bottom: page.top, left: page.right };
+    case 270: return { top: page.left, right: page.top, bottom: page.right, left: page.bottom };
+    default: return page;
   }
+};
 
+const toPx = (bleed) => ({
+  left: Math.round(bleed.left * PX_PER_MM),
+  top: Math.round(bleed.top * PX_PER_MM),
+  right: Math.round(bleed.right * PX_PER_MM),
+  bottom: Math.round(bleed.bottom * PX_PER_MM),
+});
+
+export const renderLabel = async (label, { fit, showCaptions }, bleedMm = NO_BLEED) => {
+  const rotation = (((label.rotation || 0) % 360) + 360) % 360;
   const swap = rotation === 90 || rotation === 270;
-  const cw = swap ? PX_H : PX_W;
-  const ch = swap ? PX_W : PX_H;
-  const content = document.createElement('canvas');
-  content.width = cw;
-  content.height = ch;
-  await drawContent(content.getContext('2d'), label, cw, ch, { fit, showCaptions });
+  const page = toPx(bleedMm);
+  const inner = contentBleed(page, rotation);
 
-  ctx.save();
-  ctx.translate(PX_W / 2, PX_H / 2);
+  const contentW = swap ? PX_H : PX_W;
+  const contentH = swap ? PX_W : PX_H;
+  const content = document.createElement('canvas');
+  content.width = contentW + inner.left + inner.right;
+  content.height = contentH + inner.top + inner.bottom;
+  const contentCtx = content.getContext('2d');
+  contentCtx.translate(inner.left, inner.top);
+  await drawContent(contentCtx, label, contentW, contentH, { fit, showCaptions }, inner);
+
+  if (rotation === 0) return content.toDataURL('image/jpeg', 0.92);
+
+  const canvas = document.createElement('canvas');
+  canvas.width = PX_W + page.left + page.right;
+  canvas.height = PX_H + page.top + page.bottom;
+  const ctx = canvas.getContext('2d');
+  ctx.translate(canvas.width / 2, canvas.height / 2);
   ctx.rotate((rotation * Math.PI) / 180);
-  ctx.drawImage(content, -cw / 2, -ch / 2);
-  ctx.restore();
+  ctx.drawImage(content, -content.width / 2, -content.height / 2);
 
   return canvas.toDataURL('image/jpeg', 0.92);
+};
+
+// Rows butt against each other, so only the outer rows get overprint at top/bottom.
+const slotBleed = (within) => {
+  const row = Math.floor(within / COLS);
+  return {
+    left: BLEED,
+    right: BLEED,
+    top: row === 0 ? BLEED : 0,
+    bottom: row === ROWS - 1 ? BLEED : 0,
+  };
+};
+
+// Without this hint most viewers print with "fit to page", shrinking the sheet
+// off the die-cut; HERMA's own PDFs print at 100%.
+const newSheetDoc = () => {
+  const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+  doc.viewerPreferences({ PrintScaling: 'None' });
+  return doc;
 };
 
 export const buildLabelsPdf = async (labels, options = {}) => {
@@ -152,7 +198,7 @@ export const buildLabelsPdf = async (labels, options = {}) => {
     offsetY = 0,
   } = options;
 
-  const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+  const doc = newSheetDoc();
   let currentPage = 0;
 
   for (let i = 0; i < labels.length; i += 1) {
@@ -166,9 +212,11 @@ export const buildLabelsPdf = async (labels, options = {}) => {
     }
 
     // eslint-disable-next-line no-await-in-loop
-    const dataUrl = await renderLabel(labels[i], { fit, showCaptions });
+    const bleed = slotBleed(within);
+    const dataUrl = await renderLabel(labels[i], { fit, showCaptions }, bleed);
     const { x, y } = slotPosition(within, offsetX, offsetY);
-    doc.addImage(dataUrl, 'JPEG', x, y, LABEL_W, LABEL_H);
+    doc.addImage(dataUrl, 'JPEG', x - bleed.left, y - bleed.top,
+      LABEL_W + bleed.left + bleed.right, LABEL_H + bleed.top + bleed.bottom);
   }
 
   return doc;
@@ -182,7 +230,7 @@ export const downloadLabelsPdf = async (labels, options = {}) => {
 // Outlines only: whatever is off on this page comes from the printer or the print
 // dialog's scaling, not from images or per-label settings.
 export const downloadTestPagePdf = ({ offsetX = 0, offsetY = 0, rulerText = '' } = {}) => {
-  const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+  const doc = newSheetDoc();
   doc.setLineWidth(0.2);
   doc.setFontSize(9);
   for (let within = 0; within < SLOTS_PER_SHEET; within += 1) {
