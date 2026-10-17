@@ -88,9 +88,15 @@ class StatisticsStore:
     def _save(self):
         if not self._path:
             return
+        # Replace atomically: a power cut mid-write would otherwise truncate the file,
+        # the next start would load an empty store and the next save would erase history.
+        tmp_path = f'{self._path}.tmp'
         try:
-            with open(self._path, 'w') as stream:
+            with open(tmp_path, 'w') as stream:
                 json.dump(self._data, stream, indent=2)
+                stream.flush()
+                os.fsync(stream.fileno())
+            os.replace(tmp_path, self._path)
         except Exception as e:
             logger.error(f"Could not write statistics file '{self._path}': {e}")
 
