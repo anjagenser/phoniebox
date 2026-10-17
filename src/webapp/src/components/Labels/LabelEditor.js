@@ -75,7 +75,7 @@ const LabelEditor = ({
         </Typography>
         <Slider
           value={size}
-          min={50}
+          min={30}
           max={100}
           step={5}
           disabled={!hasImage}

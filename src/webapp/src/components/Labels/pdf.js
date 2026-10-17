@@ -22,24 +22,17 @@ const loadImage = (src) =>
 
 export const DEFAULT_IMAGE_SIZE = 100;
 
-// The image fills a centred box of `size` percent of the label; cover crops to that box.
+// Size zooms the whole image, so shrinking a cropped image reveals what the crop hid
+// instead of cropping it again to a smaller box.
 const drawImageFit = (ctx, img, w, h, fit, size) => {
-  const bw = (w * size) / 100;
-  const bh = (h * size) / 100;
-  const bx = (w - bw) / 2;
-  const by = (h - bh) / 2;
-  const scale =
+  const base =
     fit === 'contain'
-      ? Math.min(bw / img.width, bh / img.height)
-      : Math.max(bw / img.width, bh / img.height);
+      ? Math.min(w / img.width, h / img.height)
+      : Math.max(w / img.width, h / img.height);
+  const scale = (base * size) / 100;
   const dw = img.width * scale;
   const dh = img.height * scale;
-  ctx.save();
-  ctx.beginPath();
-  ctx.rect(bx, by, bw, bh);
-  ctx.clip();
-  ctx.drawImage(img, bx + (bw - dw) / 2, by + (bh - dh) / 2, dw, dh);
-  ctx.restore();
+  ctx.drawImage(img, (w - dw) / 2, (h - dh) / 2, dw, dh);
 };
 
 export const effectiveFit = (label, fit) => label.fit || fit;
