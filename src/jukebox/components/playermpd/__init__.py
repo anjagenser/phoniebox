@@ -638,6 +638,32 @@ class PlayerMPD:
         """
         with self.mpd_lock:
             self.mpd_client.pause(state)
+            if not state:
+                return
+            status = self.mpd_client.status()
+        if status.get('state') == 'pause' and status.get('elapsed') is None:
+            self._hold_pause_until_stream_starts(status.get('playlist'))
+
+    def _hold_pause_until_stream_starts(self, playlist_version, timeout: float = 10.0):
+        """Re-apply a pause that arrived before the track's stream had started.
+
+        Mopidy accepts such a pause but switches back to playing once the stream is
+        ready, so a card removed while its playback was still starting kept playing.
+        Stops watching when another queue is loaded, so re-placing the card still plays.
+        """
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            time.sleep(0.1)
+            with self.mpd_lock:
+                status = self.mpd_client.status()
+                if status.get('playlist') != playlist_version or status.get('state') == 'stop':
+                    return
+                if status.get('state') == 'play':
+                    self.mpd_client.pause(1)
+                    logger.debug("Re-applied pause that Mopidy dropped while the stream started")
+                    return
+                if status.get('elapsed') is not None:
+                    return
 
     def _notify_if_queue_empty(self, key: str, **params) -> None:
         """Tell the WebApp when a play request left the queue empty
