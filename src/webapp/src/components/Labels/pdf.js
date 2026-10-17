@@ -1,8 +1,10 @@
 import { jsPDF } from 'jspdf';
 
 import {
+  PAGE_W,
   LABEL_W,
   LABEL_H,
+  CORNER_R,
   SLOTS_PER_SHEET,
   slotPosition,
 } from './format';
@@ -175,4 +177,27 @@ export const buildLabelsPdf = async (labels, options = {}) => {
 export const downloadLabelsPdf = async (labels, options = {}) => {
   const doc = await buildLabelsPdf(labels, options);
   doc.save(options.filename || 'phoniebox-labels.pdf');
+};
+
+// Outlines only: whatever is off on this page comes from the printer or the print
+// dialog's scaling, not from images or per-label settings.
+export const downloadTestPagePdf = ({ offsetX = 0, offsetY = 0, rulerText = '' } = {}) => {
+  const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+  doc.setLineWidth(0.2);
+  doc.setFontSize(9);
+  for (let within = 0; within < SLOTS_PER_SHEET; within += 1) {
+    const { x, y } = slotPosition(within, offsetX, offsetY);
+    doc.roundedRect(x, y, LABEL_W, LABEL_H, CORNER_R, CORNER_R, 'S');
+    doc.text(String(within + 1), x + LABEL_W / 2, y + LABEL_H / 2, { align: 'center', baseline: 'middle' });
+  }
+
+  const rulerX = (PAGE_W - 100) / 2;
+  const rulerY = 10;
+  doc.line(rulerX, rulerY, rulerX + 100, rulerY);
+  for (let mm = 0; mm <= 100; mm += 10) {
+    const tick = mm % 50 === 0 ? 3 : 1.5;
+    doc.line(rulerX + mm, rulerY - tick, rulerX + mm, rulerY);
+  }
+  doc.text(rulerText, PAGE_W / 2, rulerY + 4, { align: 'center', baseline: 'top' });
+  doc.save('phoniebox-label-test-page.pdf');
 };

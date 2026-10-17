@@ -29,7 +29,7 @@ import Header from '../Header';
 import CardPicker from './CardPicker';
 import SheetPreview from './SheetPreview';
 import LabelEditor from './LabelEditor';
-import { downloadLabelsPdf } from './pdf';
+import { downloadLabelsPdf, downloadTestPagePdf } from './pdf';
 import { LABEL_W, LABEL_H, SLOTS_PER_SHEET } from './format';
 import { emit } from '../../context/toast/events';
 
@@ -221,6 +221,21 @@ const Labels = () => {
                 />
               </Grid>
             </Grid>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 2, mb: 1 }}>
+              {t('labels.calibration.test-page-description')}
+            </Typography>
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<PictureAsPdfIcon />}
+              onClick={() => downloadTestPagePdf({
+                offsetX,
+                offsetY,
+                rulerText: t('labels.calibration.test-page-ruler'),
+              })}
+            >
+              {t('labels.calibration.test-page')}
+            </Button>
           </AccordionDetails>
         </Accordion>
 

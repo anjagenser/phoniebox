@@ -203,7 +203,10 @@
       "title": "Printer calibration (advanced)",
       "description": "Nudge every label if your printer prints slightly off-register. Positive values move labels right / down.",
       "offset-x": "Horizontal offset",
-      "offset-y": "Vertical offset"
+      "offset-y": "Vertical offset",
+      "test-page": "Download test page",
+      "test-page-description": "Prints only the label outlines, without images. Print it at 100% (actual size, not \"Fit to page\") and hold it against a label sheet. If the line at the top does not measure exactly 10 cm, the print dialog is scaling the page.",
+      "test-page-ruler": "This line must measure exactly 10 cm. Otherwise print at 100% / actual size."
     },
     "picker": {
       "upload": "Upload image",

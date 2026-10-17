@@ -203,7 +203,10 @@
       "title": "Druckerkalibrierung (erweitert)",
       "description": "Verschiebt alle Etiketten, falls dein Drucker leicht versetzt druckt. Positive Werte verschieben nach rechts / unten.",
       "offset-x": "Horizontaler Versatz",
-      "offset-y": "Vertikaler Versatz"
+      "offset-y": "Vertikaler Versatz",
+      "test-page": "Testseite herunterladen",
+      "test-page-description": "Druckt nur die Umrisse der Etiketten, ohne Bilder. Drucke sie mit 100 % (tatsächliche Grösse, nicht \"An Seite anpassen\") und halte sie gegen einen Etikettenbogen. Misst die Linie oben nicht genau 10 cm, skaliert der Druckdialog die Seite.",
+      "test-page-ruler": "Diese Linie muss genau 10 cm messen. Sonst mit 100 % / tatsächlicher Grösse drucken."
     },
     "picker": {
       "upload": "Bild hochladen",
