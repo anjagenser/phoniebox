@@ -1169,10 +1169,9 @@ class PlayerMPD:
         ``CACHE_PENDING`` while it is generated, or '' when the folder has no
         playable file. Lets the web app show a folder card's cover like Spotify.
         """
-        for entry in self.get_folder_content(folder):
-            if entry.get('type') == 'file':
-                return self.get_single_coverart(entry.get('relpath') or entry.get('path'))
-        return ''
+        plc = playlistgenerator.PlaylistCollector(components.player.get_music_library_path())
+        first = plc.first_music_file(folder)
+        return self.get_single_coverart(first) if first else ''
 
     @plugs.tag
     def get_folder_covers(self, folder: str) -> dict:
@@ -1185,15 +1184,19 @@ class PlayerMPD:
 
         :param folder: Folder path relative to music library path
         """
+        base = os.path.abspath(os.path.expanduser(components.player.get_music_library_path()))
+        try:
+            subdirs = [e for e in os.scandir(os.path.join(base, folder)) if e.is_dir(follow_symlinks=True)]
+        except (FileNotFoundError, NotADirectoryError):
+            return {}
         covers = {}
-        for entry in self.get_folder_content(folder):
-            if entry.get('type') == 'directory':
-                rel = entry.get('relpath')
-                try:
-                    covers[rel] = self.get_folder_coverart(rel)
-                except Exception as e:
-                    logger.error(f"Cover lookup failed for '{rel}': {e.__class__.__name__}: {e}")
-                    covers[rel] = ''
+        for entry in subdirs:
+            rel = os.path.relpath(entry.path, base)
+            try:
+                covers[rel] = self.get_folder_coverart(rel)
+            except Exception as e:
+                logger.error(f"Cover lookup failed for '{rel}': {e.__class__.__name__}: {e}")
+                covers[rel] = ''
         return covers
 
     @plugs.tag

@@ -92,7 +92,7 @@ def decode_podcast_core(url, playlist):
     # url = 'http://www.kakadu.de/podcast-kakadu.2730.de.podcast.xml'
     # url = 'https://www1.wdr.de/mediathek/audio/hoerspiel-speicher/wdr_hoerspielspeicher150.podcast'
     try:
-        r = requests.get(url)
+        r = requests.get(url, timeout=10)
     except Exception as e:
         logger.error(f"Get URL: {e.__class__.__name__}: {e}")
         return
@@ -281,6 +281,22 @@ class PlaylistCollector:
                     'path': m.path,
                     'relpath': os.path.relpath(m.path, self._music_library_base_path)
                 })
+
+    def first_music_file(self, path='.'):
+        """Return the first plain music file in ``path``, relative to the library base, or None.
+
+        For cover lookups: unlike :meth:`get_directory_content` this runs no special
+        handlers, so browsing a folder never downloads a podcast feed or parses playlists.
+        """
+        folder = os.path.abspath(os.path.join(self._music_library_base_path, path))
+        try:
+            files = [f for f in os.scandir(folder) if self._is_valid(f)]
+        except (FileNotFoundError, NotADirectoryError):
+            return None
+        for f in sorted(files, key=lambda x: x.name.casefold()):
+            if not any(f.name.casefold().endswith(key) for key in self.special_handlers):
+                return os.path.relpath(f.path, self._music_library_base_path)
+        return None
 
     def _parse_nonrecusive(self, path='.'):
         return [x.path for x in self._get_directory_content(path) if x.filetype != TYPE_DIR]
