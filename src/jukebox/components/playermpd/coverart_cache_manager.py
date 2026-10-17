@@ -5,13 +5,15 @@ import hashlib
 import logging
 import urllib.request
 from queue import Queue
-from threading import Thread
+from threading import Lock, Thread
 import jukebox.cfghandler
 
 COVER_PREFIX = 'cover'
 NO_COVER_ART_EXTENSION = 'no-art'
 NO_CACHE = ''
 CACHE_PENDING = 'CACHE_PENDING'
+# The only extensions written, so a lookup can probe each one directly.
+CACHE_EXTENSIONS = ('jpg', 'png', 'webp')
 
 logger = logging.getLogger('jb.CoverartCacheManager')
 cfg = jukebox.cfghandler.get_handler('jukebox')
@@ -22,6 +24,9 @@ class CoverartCacheManager:
         coverart_cache_path = cfg.setndefault('webapp', 'coverart_cache_path', value='../../src/webapp/build/cover-cache')
         self.cache_folder_path = Path(coverart_cache_path).expanduser()
         self.write_queue = Queue()
+        # Keys already queued: repeated lookups during a slow extraction would queue duplicates.
+        self._queued = set()
+        self._queued_lock = Lock()
         self.worker_thread = Thread(target=self.process_write_requests)
         self.worker_thread.daemon = True
         self.worker_thread.start()
@@ -34,13 +39,12 @@ class CoverartCacheManager:
         None if not cached. Uses direct ``exists()`` probes (O(1)) instead of
         scanning the whole cache directory on every lookup — the previous
         ``iterdir()`` made browsing folders with many items flood and time out
-        the single-threaded RPC server. Falls back to a glob only on a miss, to
-        still catch the rare non-jpg/png extension."""
+        the single-threaded RPC server."""
         if not self.cache_folder_path.exists():
             return None
         if (self.cache_folder_path / f"{cache_key}.{NO_COVER_ART_EXTENSION}").exists():
             return NO_CACHE
-        for ext in ('jpg', 'jpeg', 'png'):
+        for ext in CACHE_EXTENSIONS:
             candidate = self.cache_folder_path / f"{cache_key}.{ext}"
             if candidate.exists():
                 return candidate.name
@@ -63,7 +67,14 @@ class CoverartCacheManager:
         return CACHE_PENDING
 
     def save_to_cache(self, mp3_file_path: str):
-        self.write_queue.put(mp3_file_path)
+        self._enqueue(mp3_file_path, mp3_file_path)
+
+    def _enqueue(self, key, item):
+        with self._queued_lock:
+            if key in self._queued:
+                return
+            self._queued.add(key)
+        self.write_queue.put(item)
 
     def lookup_remote(self, cache_id: str) -> str:
         """Return the cached filename for a previously-downloaded remote image.
@@ -85,7 +96,7 @@ class CoverartCacheManager:
         existing = self.lookup_remote(cache_id)
         if existing is not None:
             return existing
-        self.write_queue.put(('remote', cache_id, url))
+        self._enqueue(cache_id, ('remote', cache_id, url))
         return CACHE_PENDING
 
     def _save_remote_to_cache(self, cache_id: str, url: str):
@@ -101,8 +112,7 @@ class CoverartCacheManager:
             logger.error(f"Error downloading cover art from {url}: {e}")
             return
 
-        file_extension = ('jpg' if 'jpeg' in content_type or 'jpg' in content_type
-                          else (content_type.split('/')[-1].split(';')[0] or 'jpg'))
+        file_extension = _normalize_extension(content_type.split('/')[-1].split(';')[0])
         cache_filename = f"{cache_key}.{file_extension}"
         self.cache_folder_path.mkdir(parents=True, exist_ok=True)
         with (self.cache_folder_path / cache_filename).open('wb') as file:
@@ -162,7 +172,7 @@ class CoverartCacheManager:
             if file.suffix.lower() in ['.jpg', '.jpeg', '.png']:
                 with file.open('rb') as img_file:
                     data = img_file.read()
-                    file_extension = file.suffix[1:]
+                    file_extension = _normalize_extension(file.suffix[1:])
                     return (file_extension, data)
 
         return (NO_COVER_ART_EXTENSION, b'')
@@ -170,14 +180,18 @@ class CoverartCacheManager:
     def process_write_requests(self):
         while True:
             item = self.write_queue.get()
+            is_remote = isinstance(item, tuple) and item and item[0] == 'remote'
             try:
-                if isinstance(item, tuple) and item and item[0] == 'remote':
+                if is_remote:
                     _, cache_id, url = item
                     self._save_remote_to_cache(cache_id, url)
                 else:
                     self._save_to_cache(item)
             except Exception as e:
                 logger.error(f"Error processing write request: {e}")
+            finally:
+                with self._queued_lock:
+                    self._queued.discard(item[1] if is_remote else item)
             self.write_queue.task_done()
 
     def flush_cache(self):
@@ -186,3 +200,10 @@ class CoverartCacheManager:
                 path.unlink()
                 logger.debug(f"Deleted cached file: {path.name}")
         logger.info("Cache flushed successfully.")
+
+
+def _normalize_extension(ext: str) -> str:
+    ext = ext.strip().lower()
+    if ext == 'jpeg' or ext not in CACHE_EXTENSIONS:
+        return 'jpg'
+    return ext
