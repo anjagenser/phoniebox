@@ -6,6 +6,7 @@ import { emit } from '../context/toast/events';
 const LOW_PRIORITY = new Set([
   'getFolderCoverArt',
   'getFolderCovers',
+  'getCardsDisplay',
   'getSingleCoverArt',
   'getAlbumCoverArt',
   'getUriDetails',

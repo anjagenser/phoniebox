@@ -81,6 +81,7 @@ sudo -u mpd speaker-test -t wav -c 2
 # Toggle (und 2nd Swipe generell) ist immer vom Status des Zielsystems abhängig und kann damit nur vom Zielsystem geändert
 # werden. Bei Wifi also braucht man 3 Funktionen: on / off / toggle. Toggle ist dann first swipe / second swipe
 
+import concurrent.futures
 import os
 import re
 import json
@@ -133,6 +134,11 @@ def uri_to_relpath(uri: str) -> str:
     the plain relative path. Values without a URI scheme are returned unchanged.
     """
     return _LOCAL_URI_PREFIX_RE.sub('', urllib.parse.unquote(uri or ''))
+
+
+def _card_command(card: dict):
+    """Return ``(command, args)`` of a card database entry as the web app lists it."""
+    return card.get('from_alias'), list((card.get('action') or {}).get('args') or [])
 
 
 class MpdLock:
@@ -1189,6 +1195,50 @@ class PlayerMPD:
                     logger.error(f"Cover lookup failed for '{rel}': {e.__class__.__name__}: {e}")
                     covers[rel] = ''
         return covers
+
+    @plugs.tag
+    def get_cards_display(self, cards: dict) -> dict:
+        """Return ``{'name', 'artist', 'image'}`` for every card in one call.
+
+        Replaces one RPC per card (two for single songs), which the web app had to send
+        one after another. Uncached URIs are resolved in parallel, as each one may need
+        a Spotify round trip that would otherwise hold up every other request in turn.
+        ``image`` is a cover cache filename, ``CACHE_PENDING`` or ''.
+
+        :param cards: Card database entries keyed by card id, as from ``cards.list_cards``
+        """
+        uris = {components.player.uri.normalize_uri(args[0])
+                for command, args in (_card_command(card) for card in cards.values())
+                if command == 'play_uri' and args}
+        uncached = [uri for uri in uris if uri not in _uri_details_cache]
+        if uncached and self.player_backend == 'mopidy':
+            with concurrent.futures.ThreadPoolExecutor(max_workers=6) as pool:
+                list(pool.map(self._resolve_uri_details, uncached))
+
+        display = {}
+        for card_id, card in cards.items():
+            try:
+                display[card_id] = self._card_display(*_card_command(card))
+            except Exception as e:
+                logger.debug(f"Card display for '{card_id}' failed: {e.__class__.__name__}: {e}")
+                display[card_id] = {'name': None, 'artist': None, 'image': ''}
+        return display
+
+    def _card_display(self, command: str, args: list) -> dict:
+        if command == 'play_uri' and args:
+            details = self._resolve_uri_details(args[0])
+            return {'name': details['name'], 'artist': details['artist'], 'image': details['image'] or ''}
+        if command == 'play_album' and len(args) >= 2:
+            return {'name': args[1], 'artist': args[0], 'image': self.get_album_coverart(args[0], args[1])}
+        if command == 'play_single' and args:
+            songs = self.get_song_by_url(args[0])
+            track = (songs[0] if isinstance(songs, list) and songs else songs) or {}
+            return {'name': track.get('title'), 'artist': track.get('artist'),
+                    'image': self.get_single_coverart(args[0])}
+        if command in ('play_folder', 'play_card') and args:
+            name = next((part for part in reversed(args[0].split('/')) if part), args[0])
+            return {'name': name, 'artist': None, 'image': self.get_folder_coverart(args[0])}
+        return {'name': None, 'artist': None, 'image': ''}
 
     @plugs.tag
     def list_directories(self) -> list:

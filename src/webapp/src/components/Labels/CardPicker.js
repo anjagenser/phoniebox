@@ -23,7 +23,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import UploadIcon from '@mui/icons-material/Upload';
 
 import request from '../../utils/request';
-import { resolveCardDisplay } from '../Cards/display';
+import { resolveCardsDisplay } from '../Cards/display';
 
 const readFileAsDataUrl = (file) =>
   new Promise((resolve, reject) => {
@@ -60,13 +60,9 @@ const CardPicker = ({ counts = {}, onAddCard, onAddImages }) => {
     let active = true;
     const ids = Object.keys(data);
     if (!ids.length) return undefined;
-    (async () => {
-      const resolved = {};
-      await Promise.all(ids.map(async (id) => {
-        resolved[id] = await resolveCardDisplay(data[id]);
-      }));
+    resolveCardsDisplay(data).then((resolved) => {
       if (active) setDetails(resolved);
-    })();
+    });
     return () => { active = false; };
   }, [data]);
 

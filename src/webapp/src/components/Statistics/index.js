@@ -35,7 +35,7 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 
 import Header from '../Header';
 import request from '../../utils/request';
-import { resolveCardDisplay } from '../Cards/display';
+import { resolveCardsDisplay } from '../Cards/display';
 import { songDisplayName, songFolderFromUri } from '../../utils/utils';
 
 const LIMIT = 10;
@@ -188,15 +188,18 @@ const Statistics = () => {
         ...(history.years || []).flatMap(({ cards: periodCards }) => periodCards || []),
       ].map(({ card_id: cardId }) => cardId)
     );
-    await Promise.all(
-      [...cardIds].map(async (cardId) => {
-        const card = cardsMap[cardId];
-        const resolved = card
-          ? await resolveCardDisplay(card)
-          : { name: null, image: null };
-        details[cardId] = { ...resolved, fromAlias: card && card.from_alias };
-      })
-    );
+    const known = {};
+    cardIds.forEach((cardId) => {
+      if (cardsMap[cardId]) known[cardId] = cardsMap[cardId];
+    });
+    const resolved = await resolveCardsDisplay(known);
+    cardIds.forEach((cardId) => {
+      const card = cardsMap[cardId];
+      details[cardId] = {
+        ...(resolved[cardId] || { name: null, image: null }),
+        fromAlias: card && card.from_alias,
+      };
+    });
     setCardDetails(details);
     setIsLoading(false);
   }, []);

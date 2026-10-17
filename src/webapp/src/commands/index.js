@@ -15,6 +15,11 @@ const commands = {
     method: 'get_folder_coverart',
     argKeys: ['folder'],
   },
+  getCardsDisplay: {
+    _package: 'player',
+    plugin: 'ctrl',
+    method: 'get_cards_display',
+  },
   getFolderCovers: {
     _package: 'player',
     plugin: 'ctrl',

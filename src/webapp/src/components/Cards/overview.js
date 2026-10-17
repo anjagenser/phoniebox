@@ -19,7 +19,7 @@ import { useTheme } from '@mui/material/styles';
 
 import Header from '../Header';
 import request from '../../utils/request';
-import { resolveCardDisplay } from './display';
+import { resolveCardsDisplay } from './display';
 import { MINI_PLAYER_HEIGHT, NAV_HEIGHT, SAFE_AREA_BOTTOM } from '../Player/mini-player';
 
 const SORT_OPTIONS = ['name-asc', 'name-desc', 'artist-asc', 'artist-desc'];
@@ -58,13 +58,9 @@ const CardsOverview = () => {
     const ids = Object.keys(data);
     if (!ids.length) return undefined;
 
-    (async () => {
-      const resolved = {};
-      await Promise.all(ids.map(async (id) => {
-        resolved[id] = await resolveCardDisplay(data[id]);
-      }));
+    resolveCardsDisplay(data).then((resolved) => {
       if (active) setDetails(resolved);
-    })();
+    });
 
     return () => { active = false; };
   }, [data]);
