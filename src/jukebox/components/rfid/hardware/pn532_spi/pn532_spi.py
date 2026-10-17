@@ -35,6 +35,11 @@ _POLL_TIMEOUT = 0.3
 # attempts fit inside the budget, which is what makes a weakly coupled card survive.
 _READ_BUDGET = 0.25
 
+# How long after the last read the budget stays in use. Must outlast the longest
+# card_removal_delay the WebApp offers (10s), so that removal detection is unchanged;
+# an empty reader then costs one poll per cycle instead of a 0.25s burst.
+_RETRY_HOLD = 15.0
+
 # PN532 activation retries per poll. Low enough that a poll ends promptly, above zero so
 # a card that answers late in the anticollision still gets picked up.
 _DEFAULT_MAX_RETRIES = 2
@@ -121,6 +126,7 @@ class ReaderClass(ReaderBaseClass):
 
         self.device.SAM_configuration()
         self._apply_max_retries()
+        self._last_hit = float('-inf')
         self._keep_running = True
 
     def _apply_max_retries(self):
@@ -210,11 +216,18 @@ class ReaderClass(ReaderBaseClass):
         up again after the RF field was cycled. Retrying rides over those gaps, but the
         budget has to stay small: the card removal watchdog is counting down the whole
         time, so a slow retry loop causes the very dropout it is meant to hide.
+
+        Retries only run while a card was seen recently: with nobody at the box there is
+        no dropout to hide, and a newly placed card is caught by the next cycle anyway.
         """
         uid = self._poll_target()
-        deadline = time.monotonic() + _READ_BUDGET
-        while uid is None and self._keep_running and time.monotonic() < deadline:
-            uid = self._poll_target()
+        now = time.monotonic()
+        if uid is None and now - self._last_hit < _RETRY_HOLD:
+            deadline = now + _READ_BUDGET
+            while uid is None and self._keep_running and time.monotonic() < deadline:
+                uid = self._poll_target()
+        if uid is not None:
+            self._last_hit = time.monotonic()
         return uid
 
     def _repoll_target(self):
