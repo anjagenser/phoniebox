@@ -6,7 +6,9 @@ Description=Jukebox Daemon
 # pulseaudio is wanted by default.target, which means sound.target is not enough as after requirement
 # https://serverfault.com/questions/812584/in-systemd-whats-the-difference-between-after-and-requires
 # https://unix.stackexchange.com/questions/390898/understanding-systemd-requires-option
-After=network.target sound.target mpd.service mopidy.service pulseaudio.service pipewire-pulse.service
+# Not ordered after mpd/mopidy: the player connects in the background, so cards and
+# buttons work while Mopidy still logs in to Spotify.
+After=network.target sound.target pulseaudio.service pipewire-pulse.service
 Wants=mpd.service pulseaudio.service
 
 [Service]

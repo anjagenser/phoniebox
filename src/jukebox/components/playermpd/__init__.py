@@ -142,11 +142,22 @@ def _card_command(card: dict):
 
 
 class MpdLock:
+    # How long a command waits for the background connect at boot before trying anyway.
+    READY_WAIT = 30
+
     def __init__(self, client: mpd.MPDClient, host: str, port: int):
         self._lock = threading.RLock()
         self.client = client
         self.host = host
         self.port = port
+        # Set once the backend connection is up: a card placed while Mopidy still starts
+        # then plays as soon as it can, instead of failing.
+        self.ready = threading.Event()
+
+    @property
+    def unguarded(self):
+        """The lock without the wait for ``ready``, for the connect that sets it."""
+        return self._lock
 
     def _try_connect(self):
         try:
@@ -155,6 +166,7 @@ class MpdLock:
             pass
 
     def __enter__(self):
+        self.ready.wait(self.READY_WAIT)
         self._lock.acquire()
         self._try_connect()
         return self
@@ -163,6 +175,7 @@ class MpdLock:
         self._lock.release()
 
     def acquire(self, blocking: bool = True, timeout: float = -1) -> bool:
+        self.ready.wait(self.READY_WAIT)
         locked = self._lock.acquire(blocking, timeout)
         if locked:
             self._try_connect()
@@ -237,9 +250,9 @@ class PlayerMPD:
         # in any relevant matter anyway
         self.mpd_client.timeout = None               # network timeout in seconds (floats allowed), default: None
         self.mpd_client.idletimeout = None           # timeout for fetching the result of the idle command
-        self.connect()
-        logger.info(f"Connected to MPD Version: {self.mpd_client.mpd_version}")
-        self.player_backend = self._detect_backend()
+        # Known once connected, see _connect_backend
+        self.player_backend = 'pending'
+        self._clear_queue_on_connect = False
 
         self.current_folder_status = {}
         if not self.music_player_status:
@@ -255,7 +268,7 @@ class PlayerMPD:
                 self.current_folder_status = self.music_player_status['audio_folder_status'][last_played_folder]
                 # Restore the playlist status in mpd
                 # But what about playback position?
-                self.mpd_client.clear()
+                self._clear_queue_on_connect = True
                 #  This could fail and cause load fail of entire package:
                 # self.mpd_client.add(last_played_folder)
                 logger.info(f"Last Played Folder: {last_played_folder}")
@@ -278,6 +291,18 @@ class PlayerMPD:
 
         self.status_thread = multitimer.GenericEndlessTimerClass('mpd.timer_status',
                                                                  self.mpd_status_poll_interval, self._mpd_status_poll)
+        # Mopidy opens its port only after Spotify has logged in, 10s and more at boot.
+        # Connecting in the background lets cards, buttons and the start sound work meanwhile.
+        threading.Thread(target=self._connect_backend, name='mpd.connect', daemon=True).start()
+
+    def _connect_backend(self):
+        self.connect(retry_forever=True)
+        with self.mpd_lock.unguarded:
+            logger.info(f"Connected to MPD Version: {self.mpd_client.mpd_version}")
+            self.player_backend = self._detect_backend()
+            if self._clear_queue_on_connect:
+                self.mpd_client.clear()
+        self.mpd_lock.ready.set()
         self.status_thread.start()
 
     def exit(self):
@@ -288,7 +313,7 @@ class PlayerMPD:
         self.nvm.save_all()
         return self.status_thread.timer_thread
 
-    def connect(self):
+    def connect(self, retry_forever: bool = False):
         # Retry with backoff: the backend may not be listening on 6600 yet at boot.
         connect_timeout = float(cfg.setndefault('playermpd', 'connect_timeout', value=30))
         deadline = time.monotonic() + connect_timeout
@@ -296,19 +321,29 @@ class PlayerMPD:
         while True:
             attempt += 1
             try:
-                self.mpd_client.connect(self.mpd_host, 6600)
+                with self.mpd_lock.unguarded:
+                    try:
+                        self.mpd_client.connect(self.mpd_host, 6600)
+                    except mpd.base.ConnectionError as e:
+                        # A command that gave up waiting may have connected meanwhile
+                        if str(e) != 'Already connected':
+                            raise
                 if attempt > 1:
                     logger.info(f"Connected to MPD at {self.mpd_host}:6600 after {attempt} attempts")
                 return
             except (ConnectionRefusedError, OSError, mpd.base.ConnectionError) as e:
                 if time.monotonic() >= deadline:
-                    logger.error(f"Giving up connecting to MPD at {self.mpd_host}:6600 "
-                                 f"after {connect_timeout:.0f}s ({attempt} attempts)")
-                    raise
+                    if not retry_forever:
+                        logger.error(f"Giving up connecting to MPD at {self.mpd_host}:6600 "
+                                     f"after {connect_timeout:.0f}s ({attempt} attempts)")
+                        raise
+                    logger.error(f"MPD at {self.mpd_host}:6600 still not reachable after "
+                                 f"{attempt} attempts, player commands fail until it is")
+                    deadline = float('inf')
                 if attempt == 1:
                     logger.warning(f"MPD not ready at {self.mpd_host}:6600 "
                                    f"({type(e).__name__}); retrying...")
-                time.sleep(0.25)
+                time.sleep(0.25 if deadline != float('inf') else 2.0)
 
     def _detect_backend(self) -> str:
         """Return the active player backend: ``'mopidy'`` or ``'mpd'``.
