@@ -551,7 +551,8 @@
         "paired": "Gerät gekoppelt",
         "connected": "Gerät verbunden",
         "disconnected": "Gerät getrennt",
-        "removed": "Gerät entfernt"
+        "removed": "Gerät entfernt",
+        "failed": "Bluetooth-Aktion fehlgeschlagen"
       }
     },
     "cardbackup": {

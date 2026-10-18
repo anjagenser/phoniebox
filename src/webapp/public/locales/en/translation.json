@@ -553,7 +553,8 @@
         "paired": "Device paired",
         "connected": "Device connected",
         "disconnected": "Device disconnected",
-        "removed": "Device removed"
+        "removed": "Device removed",
+        "failed": "Bluetooth action failed"
       }
     },
     "cardbackup": {

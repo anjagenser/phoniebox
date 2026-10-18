@@ -11,13 +11,21 @@ These functions are registered under the ``host`` plugin package (see
 ``components.hostif.linux``). They shell out to ``bluetoothctl`` and therefore
 require the BlueZ stack to be installed and the jukebox user to have access to
 it (typically membership in the ``bluetooth`` group).
+
+Scan, pair, connect, disconnect and remove take up to 45s. They run on a worker
+thread and return at once; the device list is published on :data:`TOPIC` when
+they finish. Run on the RPC thread they held up every other request, including
+play and pause, for that long.
 """
 import logging
+import queue
 import re
 import shutil
 import subprocess
+import threading
 
 import jukebox.plugs as plugin
+import jukebox.publishing as publishing
 
 logger = logging.getLogger('jb.host.bt')
 
@@ -25,6 +33,12 @@ _DEVICE_LINE = re.compile(r'^Device\s+([0-9A-Fa-f:]{17})\s+(.*)$')
 _INFO_LINE = re.compile(r'^\s*([A-Za-z]+):\s+(.*)$')
 
 _AUDIO_ICONS = {'audio-card', 'audio-headset', 'audio-headphones', 'audio-speakers'}
+
+TOPIC = 'host.bluetooth'
+
+_jobs = queue.Queue()
+_worker = None
+_worker_lock = threading.Lock()
 
 
 def parse_devices(output):
@@ -123,33 +137,45 @@ def bluetooth_devices(audio_only=True):
     return {'available': True, 'devices': devices}
 
 
-@plugin.register(package='host')
-def bluetooth_scan(timeout=12, audio_only=True):
-    """Scan for nearby Bluetooth devices, then return the known device list.
+def _work():
+    while True:
+        action, mac, job = _jobs.get()
+        ok = True
+        try:
+            job()
+        except Exception as e:
+            ok = False
+            logger.error(f"bluetooth {action} failed: {e.__class__.__name__}: {e}")
+        try:
+            result = bluetooth_devices()
+        except Exception as e:
+            logger.error(f"bluetooth device list failed: {e.__class__.__name__}: {e}")
+            result = {'available': True, 'devices': []}
+        publishing.get_publisher().send(TOPIC, {**result, 'action': action, 'mac': mac, 'ok': ok})
 
-    :param timeout: Discovery duration in seconds.
-    """
+
+def _submit(action, mac, job):
+    """Queue a slow bluetoothctl job; the result arrives on :data:`TOPIC`."""
+    global _worker
     if not _bluetoothctl_available():
-        return {'available': False, 'devices': []}
+        raise RuntimeError("bluetoothctl not available")
+    with _worker_lock:
+        if _worker is None:
+            _worker = threading.Thread(target=_work, name='bluetooth', daemon=True)
+            _worker.start()
+    _jobs.put((action, mac, job))
+    return {'started': True, 'action': action, 'mac': mac}
+
+
+def _scan(timeout):
     try:
-        timeout = max(3, min(int(timeout), 30))
         _run(['power', 'on'], timeout=10)
         _run(['--timeout', str(timeout), 'scan', 'on'], timeout=timeout + 8)
     except subprocess.TimeoutExpired:
         logger.warning("bluetooth_scan: scan timed out (continuing)")
-    except Exception as e:
-        logger.error(f"bluetooth_scan failed: {e.__class__.__name__}: {e}")
-    return bluetooth_devices(audio_only=audio_only)
 
 
-@plugin.register(package='host')
-def bluetooth_pair(mac):
-    """Pair, trust and connect a Bluetooth device.
-
-    :param mac: Device MAC address (``AA:BB:CC:DD:EE:FF``).
-    """
-    if not _bluetoothctl_available():
-        raise RuntimeError("bluetoothctl not available")
+def _pair(mac):
     logger.info(f"Pairing Bluetooth device {mac}")
     output = _session([
         'power on',
@@ -160,34 +186,43 @@ def bluetooth_pair(mac):
         f'connect {mac}',
     ], timeout=45)
     logger.debug(f"bluetooth_pair output: {output}")
-    return _device_info(mac)
+
+
+@plugin.register(package='host')
+def bluetooth_scan(timeout=12):
+    """Start a scan for nearby Bluetooth devices; the device list follows on ``host.bluetooth``.
+
+    :param timeout: Discovery duration in seconds.
+    """
+    timeout = max(3, min(int(timeout), 30))
+    return _submit('scan', None, lambda: _scan(timeout))
+
+
+@plugin.register(package='host')
+def bluetooth_pair(mac):
+    """Start pairing, trusting and connecting a Bluetooth device.
+
+    :param mac: Device MAC address (``AA:BB:CC:DD:EE:FF``).
+    """
+    return _submit('pair', mac.upper(), lambda: _pair(mac))
 
 
 @plugin.register(package='host')
 def bluetooth_connect(mac):
-    """Connect an already-paired Bluetooth device."""
-    if not _bluetoothctl_available():
-        raise RuntimeError("bluetoothctl not available")
+    """Start connecting an already-paired Bluetooth device."""
     logger.info(f"Connecting Bluetooth device {mac}")
-    _run(['connect', mac], timeout=20)
-    return _device_info(mac)
+    return _submit('connect', mac.upper(), lambda: _run(['connect', mac], timeout=20))
 
 
 @plugin.register(package='host')
 def bluetooth_disconnect(mac):
-    """Disconnect a connected Bluetooth device."""
-    if not _bluetoothctl_available():
-        raise RuntimeError("bluetoothctl not available")
+    """Start disconnecting a connected Bluetooth device."""
     logger.info(f"Disconnecting Bluetooth device {mac}")
-    _run(['disconnect', mac], timeout=20)
-    return _device_info(mac)
+    return _submit('disconnect', mac.upper(), lambda: _run(['disconnect', mac], timeout=20))
 
 
 @plugin.register(package='host')
 def bluetooth_remove(mac):
-    """Remove (unpair) a Bluetooth device."""
-    if not _bluetoothctl_available():
-        raise RuntimeError("bluetoothctl not available")
+    """Start removing (unpairing) a Bluetooth device."""
     logger.info(f"Removing Bluetooth device {mac}")
-    _run(['remove', mac], timeout=20)
-    return {'mac': mac.upper(), 'removed': True}
+    return _submit('remove', mac.upper(), lambda: _run(['remove', mac], timeout=20))

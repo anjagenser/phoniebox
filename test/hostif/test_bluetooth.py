@@ -9,10 +9,11 @@ import sys
 import unittest
 from unittest.mock import MagicMock
 
-# bluetooth.py only depends on jukebox.plugs; mock it so we can import the file
+# bluetooth.py only depends on jukebox.plugs and jukebox.publishing; mock them so we can import the file
 # directly without running the heavy components.hostif.linux package __init__.
 sys.modules['jukebox'] = MagicMock()
 sys.modules['jukebox.plugs'] = MagicMock()
+sys.modules['jukebox.publishing'] = MagicMock()
 
 _MODULE_PATH = os.path.abspath(
     os.path.join(os.path.dirname(__file__),

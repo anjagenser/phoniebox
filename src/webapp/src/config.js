@@ -10,6 +10,7 @@ const SUBSCRIPTIONS = [
   'core.plugins.loaded',
   'core.version',
   'core.started_at',
+  'host.bluetooth',
   'host.timer.cputemp',
   'host.temperature.cpu',
   'notification',

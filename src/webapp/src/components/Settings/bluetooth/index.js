@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useEffect, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import {
@@ -34,12 +34,17 @@ const SettingsBluetooth = () => {
   const { state: pubsubState } = useContext(PubSubContext);
   // activeSink is republished on Bluetooth connect/disconnect; use it to refresh devices.
   const activeSink = pubsubState['volume.sink']?.active_sink;
+  // Slow bluetoothctl jobs report back on this topic instead of in the request reply.
+  const jobResult = pubsubState['host.bluetooth'];
 
   const [available, setAvailable] = useState(true);
   const [devices, setDevices] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isScanning, setIsScanning] = useState(false);
   const [busyMac, setBusyMac] = useState(null);
+  // The last result is replayed on subscribe; only a job started here may end the wait.
+  const pending = useRef(null);
+  const fallback = useRef(null);
 
   const loadDevices = useCallback(async () => {
     const { result, error } = await request('bluetoothDevices');
@@ -55,24 +60,47 @@ const SettingsBluetooth = () => {
     loadDevices();
   }, [loadDevices, activeSink]);
 
-  const handleScan = async () => {
-    setIsScanning(true);
-    const { result } = await request('bluetoothScan', { timeout: 12 });
+  const finishJob = useCallback(() => {
+    pending.current = null;
+    clearTimeout(fallback.current);
     setIsScanning(false);
-    if (result) {
-      setAvailable(result.available !== false);
-      setDevices(result.devices || []);
-    }
-  };
-
-  const runAction = async (mac, command, toastKey) => {
-    setBusyMac(mac);
-    const { error } = await request(command, { mac });
     setBusyMac(null);
-    if (!error && toastKey) {
+  }, []);
+
+  useEffect(() => () => clearTimeout(fallback.current), []);
+
+  useEffect(() => {
+    if (!jobResult || !pending.current) return;
+    const { toastKey } = pending.current;
+    finishJob();
+    setAvailable(jobResult.available !== false);
+    setDevices(jobResult.devices || []);
+    if (!jobResult.ok) {
+      emit('error', t('settings.bluetooth.toasts.failed'));
+    } else if (toastKey) {
       emit('success', t(`settings.bluetooth.toasts.${toastKey}`));
     }
-    await loadDevices();
+  }, [jobResult, finishJob, t]);
+
+  const startJob = async (command, kwargs, toastKey) => {
+    pending.current = { toastKey };
+    // Fallback if the result never arrives, e.g. the backend restarted meanwhile
+    fallback.current = setTimeout(() => {
+      finishJob();
+      loadDevices();
+    }, 60000);
+    const { error } = await request(command, kwargs);
+    if (error) finishJob();
+  };
+
+  const handleScan = () => {
+    setIsScanning(true);
+    startJob('bluetoothScan', { timeout: 12 }, null);
+  };
+
+  const runAction = (mac, command, toastKey) => {
+    setBusyMac(mac);
+    startJob(command, { mac }, toastKey);
   };
 
   if (!available) {
