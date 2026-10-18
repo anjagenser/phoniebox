@@ -2,9 +2,6 @@
 # Install with: sed 's/#.*//g' packages-mopidy.txt | xargs sudo apt-get install -y
 
 python3-pip
-python3-cffi
-python3-ply
-python3-pycparser
 mopidy
 
 # GStreamer decoders. Mopidy plays everything through GStreamer, and the plugin
