@@ -106,6 +106,24 @@ active_wifi()
     fi
 }
 
+#Function is the wifi device part-way through activating a connection
+wifi_activating()
+{
+    #GENERAL.STATE is e.g. "70 (connecting (getting IP configuration))"; 40-90 are the activation steps
+    local code="$(nmcli -g GENERAL.STATE device show "$wdev0" 2>/dev/null)"
+    code="${code%% *}"
+    [[ "$code" =~ ^[0-9]+$ ]] && [ "$code" -ge 40 ] && [ "$code" -lt 100 ]
+}
+
+#Function wait until NM has finished autoconnecting at boot
+wait_nm_startup()
+{
+    #Acting before NM's own autoconnect finishes re-activated the same profile and dropped wifi for ~5s on every boot
+    if ! nm-online -s -q -t 30 ; then
+        echo "NetworkManager startup not complete after 30s, continuing"
+    fi
+}
+
 #Function is the current Connection an AP
 is_active_ap()
 {
@@ -240,7 +258,7 @@ start_nw()
     for i in "${nw_profile[@]}"
     do
         echo "Checking: $i"
-        con="$(nmcli con up $i)"
+        con="$(nmcli con up "$i")"
         if ( echo "$con" | grep 'Connection successfully activated' ) >/dev/null 2>&1; then
             echo "Connection was good"
             active_wifi
@@ -302,6 +320,7 @@ while getopts "aht" opt; do
     esac
 done
 
+wait_nm_startup
 saved_profiles #get list of saved profile
 active_wifi
 is_active_ap
@@ -330,7 +349,11 @@ else
         fi
     else #no active profile
         nearby_ssids_iw #scan for nearby SSID's
-        if [ "${ssidChk[0]}" != "$NO_SSID" ]; then #known ssid in range
+        active_wifi
+        if [ ! -z "$active" ] || wifi_activating ; then
+            #NM connected on its own during the scan; re-activating would drop the link
+            echo "Wifi connected or connecting meanwhile, nothing to do"
+        elif [ "${ssidChk[0]}" != "$NO_SSID" ]; then #known ssid in range
             start_nw
         else
             start_ap
