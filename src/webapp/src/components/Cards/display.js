@@ -1,7 +1,5 @@
 import request from '../../utils/request';
-
-const cachePath = (result) =>
-  result && result !== 'CACHE_PENDING' ? `/cover-cache/${result}` : null;
+import { coverCachePath } from '../../utils/utils';
 
 const EMPTY = { name: null, artist: null, image: null };
 
@@ -14,7 +12,7 @@ export const resolveCardsDisplay = async (cards) => {
     const entry = (result && result[id]) || {};
     resolved[id] = entry.image === undefined
       ? { ...EMPTY }
-      : { name: entry.name || null, artist: entry.artist || null, image: cachePath(entry.image) };
+      : { name: entry.name || null, artist: entry.artist || null, image: coverCachePath(entry.image) };
   });
   return resolved;
 };

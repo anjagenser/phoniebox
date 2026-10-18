@@ -381,7 +381,7 @@ class PlayerMPD:
             return path
         base = components.player.get_music_library_path()
         relpath = os.path.relpath(path, base) if (base and os.path.isabs(path)) else path
-        if getattr(self, 'player_backend', 'mpd') == 'mopidy':
+        if self.player_backend == 'mopidy':
             return 'local:track:' + urllib.parse.quote(relpath)
         return relpath
 
@@ -540,7 +540,7 @@ class PlayerMPD:
             return
         if self._idle_audio_disabled or self._idle_audio_released:
             return
-        if getattr(self, 'player_backend', 'mpd') != 'mopidy':
+        if self.player_backend != 'mopidy':
             self._idle_audio_disabled = True
             return
 
@@ -613,7 +613,7 @@ class PlayerMPD:
 
     @plugs.tag
     def update(self):
-        if getattr(self, 'player_backend', 'mpd') == 'mopidy':
+        if self.player_backend == 'mopidy':
             self._mopidy_local_scan()
             return 0
         with self.mpd_lock:
@@ -623,7 +623,7 @@ class PlayerMPD:
     @plugs.tag
     def update_wait(self):
         # On Mopidy the scan is already synchronous, so there is nothing to wait for
-        if getattr(self, 'player_backend', 'mpd') == 'mopidy':
+        if self.player_backend == 'mopidy':
             self._mopidy_local_scan()
             return 0
         state = self.update()
@@ -1024,7 +1024,7 @@ class PlayerMPD:
         if not uri:
             return dict(empty)
         uri = components.player.uri.normalize_uri(uri)
-        if getattr(self, 'player_backend', 'mpd') != 'mopidy':
+        if self.player_backend != 'mopidy':
             return dict(empty)
 
         if uri in _uri_details_cache:
@@ -1088,7 +1088,7 @@ class PlayerMPD:
         if not uri:
             return []
         uri = components.player.uri.normalize_uri(uri)
-        if getattr(self, 'player_backend', 'mpd') != 'mopidy':
+        if self.player_backend != 'mopidy':
             return []
         if uri in _uri_tracks_cache:
             return [dict(t) for t in _uri_tracks_cache[uri]]

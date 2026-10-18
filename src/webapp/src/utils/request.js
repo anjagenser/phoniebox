@@ -9,8 +9,6 @@ const LOW_PRIORITY = new Set([
   'getCardsDisplay',
   'getSingleCoverArt',
   'getAlbumCoverArt',
-  'getUriDetails',
-  'getUriName',
   'getSongByUrl',
 ]);
 

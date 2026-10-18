@@ -20,12 +20,10 @@ import CreateNewFolderIcon from '@mui/icons-material/CreateNewFolder';
 import AppSettingsContext from '../../../../context/appsettings/context';
 import request from '../../../../utils/request';
 import { emit } from '../../../../context/toast/events';
+import { coverCachePath } from '../../../../utils/utils';
 import FolderList from "./folder-list";
 
 import { ROOT_DIR } from '../../../../config';
-
-const cachePath = (result) =>
-  result && result !== 'CACHE_PENDING' ? `/cover-cache/${result}` : null;
 
 const Folders = ({
   musicFilter,
@@ -77,7 +75,7 @@ const Folders = ({
       if (!active || !result) return;
       const mapped = {};
       Object.entries(result).forEach(([rel, value]) => {
-        mapped[rel] = cachePath(value);
+        mapped[rel] = coverCachePath(value);
       });
       setCovers(mapped);
     });
@@ -89,7 +87,7 @@ const Folders = ({
     setFolderCover(null);
     if (decodedDir !== ROOT_DIR && showCovers && listVersion) {
       request('getFolderCoverArt', { folder: decodedDir }).then(({ result }) => {
-        if (active) setFolderCover(cachePath(result));
+        if (active) setFolderCover(coverCachePath(result));
       });
     }
     return () => { active = false; };

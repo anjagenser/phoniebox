@@ -57,18 +57,6 @@ const commands = {
     method: 'get_song_by_url',
     argKeys: ['song_url']
   },
-  getUriName: {
-    _package: 'player',
-    plugin: 'ctrl',
-    method: 'get_uri_name',
-    argKeys: ['uri'],
-  },
-  getUriDetails: {
-    _package: 'player',
-    plugin: 'ctrl',
-    method: 'get_uri_details',
-    argKeys: ['uri'],
-  },
   getUriTracks: {
     _package: 'player',
     plugin: 'ctrl',
@@ -368,10 +356,6 @@ const commands = {
   },
 
   // Bluetooth
-  bluetoothAvailable: {
-    _package: 'host',
-    plugin: 'bluetooth_available',
-  },
   bluetoothDevices: {
     _package: 'host',
     plugin: 'bluetooth_devices',

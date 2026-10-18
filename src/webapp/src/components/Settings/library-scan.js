@@ -1,53 +1,17 @@
-import React, { useState } from 'react';
-import { useTranslation } from 'react-i18next';
-
-import {
-  Button,
-  Card,
-  CardContent,
-  CardHeader,
-  CircularProgress,
-  Divider,
-  Typography,
-} from '@mui/material';
+import React from 'react';
 
 import CachedIcon from '@mui/icons-material/Cached';
 
-import request from '../../utils/request';
-import { emit } from '../../context/toast/events';
+import ActionCard from './action-card';
 
-const SettingsLibraryScan = () => {
-  const { t } = useTranslation();
-  const [busy, setBusy] = useState(false);
-
-  const handleScan = async () => {
-    setBusy(true);
-    const { error } = await request('rescanLibrary');
-    setBusy(false);
-    if (!error) {
-      emit('success', t('settings.libraryscan.done'));
-    }
-  };
-
-  return (
-    <Card>
-      <CardHeader title={t('settings.libraryscan.title')} />
-      <Divider />
-      <CardContent>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          {t('settings.libraryscan.description')}
-        </Typography>
-        <Button
-          variant="outlined"
-          startIcon={busy ? <CircularProgress size={16} /> : <CachedIcon />}
-          onClick={handleScan}
-          disabled={busy}
-        >
-          {t('settings.libraryscan.scan')}
-        </Button>
-      </CardContent>
-    </Card>
-  );
-};
+const SettingsLibraryScan = () => (
+  <ActionCard
+    command="rescanLibrary"
+    textKey="settings.libraryscan"
+    buttonKey="scan"
+    doneKey="done"
+    icon={<CachedIcon />}
+  />
+);
 
 export default SettingsLibraryScan;

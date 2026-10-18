@@ -1,3 +1,7 @@
+// Cover-art RPCs answer with a cache filename, or CACHE_PENDING while it is generated.
+const coverCachePath = (result) =>
+  result && result !== 'CACHE_PENDING' ? `/cover-cache/${result}` : null;
+
 const progressToTime = (duration, progress) => duration * progress / 100;
 const timeToProgress = (duration, elapsed) => elapsed * 100 / duration;
 
@@ -63,6 +67,7 @@ const flatByAlbum = (albumList, { albumartist, album }) => {
 
 
 export {
+  coverCachePath,
   flatByAlbum,
   pluginIsLoaded,
   progressToTime,
