@@ -160,9 +160,12 @@ class MpdLock:
         return self._lock
 
     def _try_connect(self):
+        # Runs with the lock held: anything raised here leaves it acquired for good. While
+        # Mopidy restarts, connect() raises ConnectionRefusedError (an OSError), and every
+        # later player command then hung. The command itself reports the failure instead.
         try:
             self.client.connect(self.host, self.port)
-        except mpd.base.ConnectionError:
+        except (mpd.base.ConnectionError, OSError):
             pass
 
     def __enter__(self):
