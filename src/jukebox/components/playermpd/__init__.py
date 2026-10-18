@@ -141,6 +141,10 @@ def _card_command(card: dict):
     return card.get('from_alias'), list((card.get('action') or {}).get('args') or [])
 
 
+# Threads that use the player lock without acting for a user.
+_PASSIVE_THREADS = {'mpd.timer_status', 'mpd.connect', 'mpd.pause_hold'}
+
+
 class MpdLock:
     # How long a command waits for the background connect at boot before trying anyway.
     READY_WAIT = 30
@@ -153,6 +157,8 @@ class MpdLock:
         # Set once the backend connection is up: a card placed while Mopidy still starts
         # then plays as soon as it can, instead of failing.
         self.ready = threading.Event()
+        # Counts player commands, so a background watcher can tell when someone acted.
+        self.activity = 0
 
     @property
     def unguarded(self):
@@ -171,8 +177,13 @@ class MpdLock:
     def __enter__(self):
         self.ready.wait(self.READY_WAIT)
         self._lock.acquire()
+        self._count_activity()
         self._try_connect()
         return self
+
+    def _count_activity(self):
+        if threading.current_thread().name not in _PASSIVE_THREADS:
+            self.activity += 1
 
     def __exit__(self, exc_type, exc_value, traceback):
         self._lock.release()
@@ -181,6 +192,7 @@ class MpdLock:
         self.ready.wait(self.READY_WAIT)
         locked = self._lock.acquire(blocking, timeout)
         if locked:
+            self._count_activity()
             self._try_connect()
         return locked
 
@@ -690,20 +702,28 @@ class PlayerMPD:
             if not state:
                 return
             status = self.mpd_client.status()
+            activity = self.mpd_lock.activity
         if status.get('state') == 'pause' and status.get('elapsed') is None:
-            self._hold_pause_until_stream_starts(status.get('playlist'))
+            # In the background: a card removal calls this under the plugin-wide lock,
+            # and waiting there held up the next card for the full timeout.
+            threading.Thread(target=self._hold_pause_until_stream_starts,
+                             args=(status.get('playlist'), activity),
+                             name='mpd.pause_hold', daemon=True).start()
 
-    def _hold_pause_until_stream_starts(self, playlist_version, timeout: float = 10.0):
+    def _hold_pause_until_stream_starts(self, playlist_version, activity, timeout: float = 10.0):
         """Re-apply a pause that arrived before the track's stream had started.
 
         Mopidy accepts such a pause but switches back to playing once the stream is
         ready, so a card removed while its playback was still starting kept playing.
-        Stops watching when another queue is loaded, so re-placing the card still plays.
+        Gives up as soon as anyone issues another player command, e.g. the card is
+        placed again, so a wanted resume is never paused.
         """
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
-            time.sleep(0.1)
+            time.sleep(0.2)
             with self.mpd_lock:
+                if self.mpd_lock.activity != activity:
+                    return
                 status = self.mpd_client.status()
                 if status.get('playlist') != playlist_version or status.get('state') == 'stop':
                     return
