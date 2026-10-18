@@ -37,7 +37,7 @@ _read_fail_count() {
 _log_state() {
     local state="$1" detail="$2" last_state last_time now
     now=$(date +%s)
-    read -r last_state last_time < "$LAST_LOG_FILE" 2>/dev/null
+    read -r last_state last_time 2>/dev/null < "$LAST_LOG_FILE"
     if [[ "$state" != "$last_state" ]] || (( now - ${last_time:-0} >= HEARTBEAT_SECONDS )); then
         log "state=${state} ${detail}"
         echo "$state $now" > "$LAST_LOG_FILE"

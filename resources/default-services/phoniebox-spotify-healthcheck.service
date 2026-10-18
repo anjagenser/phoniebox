@@ -1,8 +1,10 @@
 [Unit]
 Description=Phoniebox Spotify watchdog, restarts Mopidy when its Spotify login died
 After=mopidy.service
-Wants=mopidy.service
+# No Wants=: the timer must not start a Mopidy that was stopped on purpose.
 
 [Service]
 Type=oneshot
 ExecStart=%%SPOTIFY_HEALTHCHECK_BIN%% %%MOPIDY_CONF_PATH%%
+# Hides systemd's start/finish lines for every run; the script logs at notice
+LogLevelMax=notice
