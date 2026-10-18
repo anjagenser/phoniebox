@@ -1,8 +1,9 @@
 [Unit]
 Description=Phoniebox network watchdog, logs WiFi state and reconnects when the LAN is gone
 After=NetworkManager.service
-Wants=NetworkManager.service
 
 [Service]
 Type=oneshot
 ExecStart=%%NETCHECK_SCRIPT%%
+# Hides systemd's start/finish lines for every run; the script logs at notice
+LogLevelMax=notice
