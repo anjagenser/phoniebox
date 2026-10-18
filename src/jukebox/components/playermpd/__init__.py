@@ -303,6 +303,7 @@ class PlayerMPD:
         self._rescan_lock = threading.Lock()
         self._rescan_running = False
         self._rescan_pending = False
+        self._replaygain_missing_logged = False
         # self.status_thread = threading.Timer(self.mpd_status_poll_interval, self._mpd_status_poll).start()
 
         self.status_thread = multitimer.GenericEndlessTimerClass('mpd.timer_status',
@@ -617,17 +618,46 @@ class PlayerMPD:
                               value=['mopidy', 'local', 'scan'])
         if isinstance(cmd, str):
             cmd = cmd.split()
-        # The scan is a separate Python/GStreamer process; keep it from starving playback
+        self._run_library_tool('Mopidy local scan', cmd, timeout=600)
+
+    def _replaygain_tag(self):
+        """Write ReplayGain tags to library files that have none yet.
+
+        Mopidy's ``rgvolume`` output element evens out loudness from these tags.
+        Tagged files are skipped, so after the first run only new files are
+        analysed. Disable with ``playermpd.library.replaygain_tagging: false``;
+        the command is configurable via ``playermpd.library.replaygain_command``
+        (the library path is appended).
+        """
+        if not cfg.setndefault('playermpd', 'library', 'replaygain_tagging', value=True):
+            return
+        cmd = cfg.setndefault('playermpd', 'library', 'replaygain_command',
+                              value=['rsgain', 'easy', '--skip-existing', '--quiet'])
+        if isinstance(cmd, str):
+            cmd = cmd.split()
+        library = components.player.get_music_library_path()
+        if not library:
+            return
+        if not shutil.which(cmd[0]):
+            if not self._replaygain_missing_logged:
+                logger.info(f"ReplayGain tagging skipped: '{cmd[0]}' is not installed")
+                self._replaygain_missing_logged = True
+            return
+        self._run_library_tool('ReplayGain tagging', [*cmd, library], timeout=3600)
+
+    @staticmethod
+    def _run_library_tool(what: str, cmd, timeout: float):
+        # Separate decoder processes; keep them from starving playback
         if shutil.which('nice'):
             cmd = ['nice', '-n', '10', *cmd]
-        logger.info(f"Running Mopidy local scan: {' '.join(cmd)}")
+        logger.info(f"Running {what}: {' '.join(cmd)}")
         try:
-            result = subprocess.run(cmd, capture_output=True, timeout=600)
+            result = subprocess.run(cmd, capture_output=True, timeout=timeout)
             if result.returncode != 0:
-                logger.error(f"Mopidy local scan failed (rc={result.returncode}): "
+                logger.error(f"{what} failed (rc={result.returncode}): "
                              f"{result.stderr.decode(errors='replace')[-500:]}")
         except (OSError, subprocess.TimeoutExpired) as e:
-            logger.error(f"Mopidy local scan error: {e.__class__.__name__}: {e}")
+            logger.error(f"{what} error: {e.__class__.__name__}: {e}")
 
     @plugs.tag
     def update(self):
@@ -657,6 +687,8 @@ class PlayerMPD:
                     return
                 self._rescan_pending = False
             try:
+                # Tag first: writing tags changes mtimes, so the scan picks the files up once
+                self._replaygain_tag()
                 self.update_wait()
             except Exception as e:
                 logger.error(f"Background library rescan failed: {e.__class__.__name__}: {e}")

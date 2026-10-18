@@ -92,6 +92,8 @@ playermpd:
     update_on_startup: true
     # Seconds after the player has connected before the startup rescan runs
     update_on_startup_delay: 30
+    # Tag new files with ReplayGain (rsgain) before each rescan; Mopidy evens out loudness from these tags
+    replaygain_tagging: true
     check_user_rights: true
     path: '%%JUKEBOX_AUDIOFOLDERS_PATH%%'
   mpd_conf: ~/.config/mpd/mpd.conf

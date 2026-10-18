@@ -159,7 +159,7 @@ _mopidy_install_spotify_healthcheck() {
 _mopidy_check() {
     print_verify_installation
 
-    verify_apt_packages mopidy
+    verify_apt_packages mopidy rsgain
 
     log "  Verify gst-plugin-spotify is held at the installed build"
     apt-mark showhold | grep -qx gst-plugin-spotify || exit_on_error "ERROR: gst-plugin-spotify is not held"
@@ -186,6 +186,7 @@ Ensure 'python3-pip' is installed (see packages-mopidy.txt) and that
     verify_files_exists "${MOPIDY_CONF_PATH}"
     verify_file_contains_string "${AUDIOFOLDERS_PATH}" "${MOPIDY_CONF_PATH}"
     verify_file_contains_string "${PLAYLISTS_PATH}" "${MOPIDY_CONF_PATH}"
+    verify_file_contains_string "output = rgvolume" "${MOPIDY_CONF_PATH}"
 
     verify_service_enablement mopidy.service disabled
     verify_service_enablement mopidy.service enabled --user

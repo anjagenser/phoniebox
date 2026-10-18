@@ -11,3 +11,6 @@ mopidy
 gstreamer1.0-plugins-good
 gstreamer1.0-plugins-bad
 gstreamer1.0-libav
+
+# Writes the ReplayGain tags that Mopidy's rgvolume output applies (see mopidy.default.conf)
+rsgain
