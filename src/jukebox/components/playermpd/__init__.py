@@ -617,6 +617,9 @@ class PlayerMPD:
                               value=['mopidy', 'local', 'scan'])
         if isinstance(cmd, str):
             cmd = cmd.split()
+        # The scan is a separate Python/GStreamer process; keep it from starving playback
+        if shutil.which('nice'):
+            cmd = ['nice', '-n', '10', *cmd]
         logger.info(f"Running Mopidy local scan: {' '.join(cmd)}")
         try:
             result = subprocess.run(cmd, capture_output=True, timeout=600)
@@ -673,6 +676,13 @@ class PlayerMPD:
                 return
             self._rescan_running = True
         threading.Thread(target=self._rescan_worker, name='library-rescan', daemon=True).start()
+
+    def _startup_rescan(self, delay: float):
+        # The backend is only known once connected; scanning earlier took the MPD path,
+        # which is a no-op on Mopidy. The delay keeps the scan off the boot critical path.
+        self.mpd_lock.ready.wait()
+        time.sleep(delay)
+        self._rescan_library_async()
 
     @plugs.tag
     def start_library_rescan(self):
@@ -1684,10 +1694,11 @@ def initialize():
     global play_card_callbacks
     play_card_callbacks = PlayContentCallbacks[PlayCardState]('play_card_callbacks', logger, context=player_ctrl.mpd_lock)
 
-    # Rescan the library in the background so startup is not blocked by it.
     library_update = cfg.setndefault('playermpd', 'library', 'update_on_startup', value=True)
     if library_update:
-        player_ctrl._rescan_library_async()
+        delay = float(cfg.setndefault('playermpd', 'library', 'update_on_startup_delay', value=30))
+        threading.Thread(target=player_ctrl._startup_rescan, args=(delay,),
+                         name='library-startup-rescan', daemon=True).start()
 
     # Check user rights on music library — run in background; can be slow on large libraries
     library_check_user_rights = cfg.setndefault('playermpd', 'library', 'check_user_rights', value=True)

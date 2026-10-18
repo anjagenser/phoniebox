@@ -90,6 +90,8 @@ playermpd:
     alias: toggle
   library:
     update_on_startup: true
+    # Seconds after the player has connected before the startup rescan runs
+    update_on_startup_delay: 30
     check_user_rights: true
     path: '%%JUKEBOX_AUDIOFOLDERS_PATH%%'
   mpd_conf: ~/.config/mpd/mpd.conf
