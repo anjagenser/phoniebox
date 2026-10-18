@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 
 import PlayerContext from './context';
 import { initSockets } from '../../sockets';
@@ -13,10 +13,7 @@ const PlayerProvider = ({ children }) => {
     });
   }, []);
 
-  const context = {
-    setState,
-    state,
-  };
+  const context = useMemo(() => ({ setState, state }), [state]);
 
   return(
       <PlayerContext.Provider value={context}>

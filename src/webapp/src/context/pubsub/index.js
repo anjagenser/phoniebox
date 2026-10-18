@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { without } from 'ramda';
 
 import PubSubContext from './context';
@@ -15,10 +15,7 @@ const PubSubProvider = ({ children }) => {
     });
   }, []);
 
-  const context = {
-    setState,
-    state,
-  };
+  const context = useMemo(() => ({ setState, state }), [state]);
 
   return(
       <PubSubContext.Provider value={context}>

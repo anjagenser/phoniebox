@@ -21,26 +21,26 @@ SUBSCRIPTIONS.forEach(
 
 socket_sub.connect(PUBSUB_ENDPOINT);
 
-const socketEvents = ({ setState, events = [] }) => {
-  socket_sub.on('message', (_topic, _payload) => {
-    const { topic, data, error } = decodePubSubMessage(_topic, _payload);
+// One listener decodes each message once and hands it to the providers that asked for its topic.
+const handlers = [];
 
-    if (events.includes(topic) && data) {
-      setState(state => ({ ...state, [topic]: data }));
-      if (topic !== 'playerstatus') {
-        console.log(topic, data, events);
-      }
-    }
+socket_sub.on('message', (_topic, _payload) => {
+  const { topic, data, error } = decodePubSubMessage(_topic, _payload);
 
-    if (error) {
-      // TODO: Better error handling
-      console.error(`[PubSub][${topic}]: ${error}`);
-    }
-  });
-};
+  if (data) {
+    handlers.forEach(({ setState, events }) => {
+      if (events.includes(topic)) setState(state => ({ ...state, [topic]: data }));
+    });
+  }
 
-const initSockets = ({ setState, events }) => {
-  socketEvents({ setState, events });
+  if (error) {
+    // TODO: Better error handling
+    console.error(`[PubSub][${topic}]: ${error}`);
+  }
+});
+
+const initSockets = ({ setState, events = [] }) => {
+  if (!handlers.some((handler) => handler.setState === setState)) handlers.push({ setState, events });
 };
 
 // Single persistent REQ socket with a priority FIFO queue: one outstanding request at a time, socket recreated on timeout.

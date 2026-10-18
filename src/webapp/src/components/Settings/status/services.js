@@ -22,13 +22,20 @@ const StatusServices = () => {
 
   useEffect(() => {
     let active = true;
+    // Each refresh runs systemctl on the box; skip it while nobody can see the page.
     const fetchData = async () => {
+      if (document.hidden) return;
       const { result } = await request('getServicesStatus');
       if (active && result) setServices(result);
     };
     fetchData();
     const timer = setInterval(fetchData, 30000);
-    return () => { active = false; clearInterval(timer); };
+    document.addEventListener('visibilitychange', fetchData);
+    return () => {
+      active = false;
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', fetchData);
+    };
   }, []);
 
   return (

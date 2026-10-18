@@ -281,6 +281,7 @@ class PlayerMPD:
 
         self.old_song = None
         self.mpd_status = {}
+        self._last_published_status = None
         self.mpd_status_poll_interval = 0.25
         self.mpd_lock = MpdLock(self.mpd_client, self.mpd_host, 6600)
         self.status_is_closing = False
@@ -477,7 +478,11 @@ class PlayerMPD:
             del self.mpd_status['volume']
         except KeyError:
             pass
-        publishing.get_publisher().send('playerstatus', self.mpd_status)
+        # Polled 4x a second: while paused or stopped nothing changes, and resending it
+        # only makes every WebApp re-render the player.
+        if self.mpd_status != self._last_published_status:
+            self._last_published_status = dict(self.mpd_status)
+            publishing.get_publisher().send('playerstatus', self.mpd_status)
 
     def _count_song_statistic(self):
         """Count a song play once it has been playing long enough.
