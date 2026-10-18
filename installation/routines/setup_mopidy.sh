@@ -57,6 +57,10 @@ _mopidy_install_gst_plugin_spotify() {
         --allow-remove-essential \
         --allow-change-held-packages
     rm -f "/tmp/${gst_plugin_name}"
+
+    # apt.mopidy.com carries its own, newer-versioned build of this plugin. A later
+    # 'apt upgrade' would silently swap the build Spotify playback was tested with.
+    sudo apt-mark hold gst-plugin-spotify
 }
 
 _mopidy_install_python_requirements() {
@@ -156,6 +160,10 @@ _mopidy_check() {
     print_verify_installation
 
     verify_apt_packages mopidy
+
+    log "  Verify gst-plugin-spotify is held at the installed build"
+    apt-mark showhold | grep -qx gst-plugin-spotify || exit_on_error "ERROR: gst-plugin-spotify is not held"
+    log "  CHECK"
 
     # Verify Mopidy extensions are installed.
     # They are installed globally via 'sudo pip3' (requirements-mopidy.txt) and are
